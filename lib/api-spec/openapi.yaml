@@ -1,36 +1,477 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Sankhya Support System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: dashboard
+  - name: tickets
+  - name: clients
+  - name: releases
+  - name: activity
+  - name: sync
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Dashboard KPIs
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardSummary" }
+
+  /dashboard/tickets-by-month:
+    get:
+      operationId: getTicketsByMonth
+      tags: [dashboard]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                type: array
+                items: { $ref: "#/components/schemas/MonthlyCount" }
+
+  /dashboard/tickets-by-status:
+    get:
+      operationId: getTicketsByStatus
+      tags: [dashboard]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StatusBreakdown" }
+
+  /dashboard/tickets-by-priority:
+    get:
+      operationId: getTicketsByPriority
+      tags: [dashboard]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/StatusBreakdown" }
+
+  /activity/recent:
+    get:
+      operationId: getRecentActivity
+      tags: [activity]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ActivityLog" }
+
+  /tickets:
+    get:
+      operationId: listTickets
+      tags: [tickets]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: priority
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Ticket" }
+    post:
+      operationId: createTicket
+      tags: [tickets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketInput" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ticket" }
+
+  /tickets/{id}:
+    get:
+      operationId: getTicket
+      tags: [tickets]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ticket" }
+    patch:
+      operationId: updateTicket
+      tags: [tickets]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketUpdate" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ticket" }
+    delete:
+      operationId: deleteTicket
+      tags: [tickets]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: deleted
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Client" }
+    post:
+      operationId: createClient
+      tags: [clients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientInput" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Client" }
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Client" }
+    patch:
+      operationId: updateClient
+      tags: [clients]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientInput" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Client" }
+    delete:
+      operationId: deleteClient
+      tags: [clients]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: deleted
+
+  /releases:
+    get:
+      operationId: listReleases
+      tags: [releases]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Release" }
+    post:
+      operationId: createRelease
+      tags: [releases]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleaseInput" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Release" }
+
+  /releases/{id}:
+    patch:
+      operationId: updateRelease
+      tags: [releases]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReleaseUpdate" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Release" }
+    delete:
+      operationId: deleteRelease
+      tags: [releases]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: deleted
+
+  /sync/status:
+    get:
+      operationId: getSyncStatus
+      tags: [sync]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncStatus" }
+    post:
+      operationId: triggerSync
+      tags: [sync]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncStatus" }
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
 
+    DashboardSummary:
+      type: object
+      required: [openTickets, pendingReleases, activeClients, lastSync, totalTickets, closedThisMonth]
+      properties:
+        openTickets: { type: integer }
+        pendingReleases: { type: integer }
+        activeClients: { type: integer }
+        lastSync: { type: ["string", "null"], format: date-time }
+        totalTickets: { type: integer }
+        closedThisMonth: { type: integer }
+
+    MonthlyCount:
+      type: object
+      required: [month, opened, closed]
+      properties:
+        month: { type: string }
+        opened: { type: integer }
+        closed: { type: integer }
+
+    StatusBreakdown:
+      type: object
+      required: [label, count]
+      properties:
+        label: { type: string }
+        count: { type: integer }
+
+    ActivityLog:
+      type: object
+      required: [id, action, entity, description, createdAt]
+      properties:
+        id: { type: integer }
+        action: { type: string }
+        entity: { type: string }
+        description: { type: string }
+        user: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    Ticket:
+      type: object
+      required: [id, title, description, priority, status, sector, openedBy, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        priority: { type: string }
+        status: { type: string }
+        sector: { type: string }
+        openedBy: { type: string }
+        assignedTo: { type: ["string", "null"] }
+        clientId: { type: ["integer", "null"] }
+        clientName: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        closedAt: { type: ["string", "null"], format: date-time }
+
+    TicketInput:
+      type: object
+      required: [title, description, priority, sector, openedBy]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        priority: { type: string }
+        sector: { type: string }
+        openedBy: { type: string }
+        assignedTo: { type: ["string", "null"] }
+        clientId: { type: ["integer", "null"] }
+
+    TicketUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        priority: { type: string }
+        status: { type: string }
+        sector: { type: string }
+        assignedTo: { type: ["string", "null"] }
+        clientId: { type: ["integer", "null"] }
+
+    Client:
+      type: object
+      required: [id, name, sankhyaCode, cnpj, phone, email, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        sankhyaCode: { type: string }
+        cnpj: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    ClientInput:
+      type: object
+      required: [name, sankhyaCode, cnpj, phone, email]
+      properties:
+        name: { type: string }
+        sankhyaCode: { type: string }
+        cnpj: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        notes: { type: ["string", "null"] }
+
+    Release:
+      type: object
+      required: [id, clientId, clientName, requestedBy, description, status, createdAt]
+      properties:
+        id: { type: integer }
+        clientId: { type: integer }
+        clientName: { type: string }
+        requestedBy: { type: string }
+        description: { type: string }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ReleaseInput:
+      type: object
+      required: [clientId, requestedBy, description]
+      properties:
+        clientId: { type: integer }
+        requestedBy: { type: string }
+        description: { type: string }
+        status: { type: string }
+
+    ReleaseUpdate:
+      type: object
+      properties:
+        status: { type: string }
+        description: { type: string }
+
+    SyncStatus:
+      type: object
+      required: [tables]
+      properties:
+        lastSync: { type: ["string", "null"], format: date-time }
+        tables:
+          type: array
+          items:
+            type: object
+            required: [name, lastSync, recordCount, status]
+            properties:
+              name: { type: string }
+              lastSync: { type: ["string", "null"], format: date-time }
+              recordCount: { type: integer }
+              status: { type: string }

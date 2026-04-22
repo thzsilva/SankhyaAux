@@ -1,0 +1,262 @@
+Crie um sistema web completo de Suporte ao Sankhya, moderno, responsivo e de fácil manutenção, seguindo rigorosamente as especificações abaixo.
+
+Objetivo do Sistema
+
+Desenvolver uma plataforma interna para suporte operacional e técnico relacionado ao ERP Sankhya, com foco em:
+
+Controle de chamados internos
+Consulta rápida de dados espelhados do banco Sankhya
+Acompanhamento de liberações
+Cadastro de clientes/usuários
+Relatórios operacionais
+Dashboard com indicadores em tempo real
+Interface simples, rápida e intuitiva
+Tecnologias Obrigatórias
+
+Utilize como base principal:
+
+Front-end
+HTML5
+CSS3
+JavaScript puro (Vanilla JS)
+Back-end
+PHP (API e regras de negócio)
+Express.js (Node.js para ambiente dev e proxy/API complementar)
+NPM scripts (npm run dev, npm run build, etc)
+Banco de Dados
+Supabase (PostgreSQL)
+Extras Permitidos
+Bootstrap ou Tailwind (se ajudar produtividade)
+Axios / Fetch API
+Chart.js para gráficos
+DataTables simples
+Estrutura Técnica Desejada
+
+O projeto precisa rodar facilmente com:
+
+npm install
+npm run dev
+
+E também possuir:
+
+npm run build
+npm start
+Banco de Dados (Supabase)
+
+Criar estrutura organizada com tabelas para:
+
+Chamados
+id
+titulo
+descricao
+prioridade
+status
+usuario_abertura
+usuario_responsavel
+setor
+data_abertura
+data_fechamento
+Usuários do Sistema
+
+Perfis:
+
+SA (Administrador total)
+Only_read (Somente leitura)
+Robot (Leitura + gravação automática)
+Human (Acesso operacional comum)
+Clientes
+id
+nome
+codigo_sankhya
+cnpj
+telefone
+email
+observacoes
+Liberações
+id
+cliente
+usuario
+descricao
+status
+data
+Logs do Sistema
+
+Registrar tudo:
+
+login
+criação
+edição
+exclusão
+erros
+Integração Sankhya / Espelhamento
+
+Criar módulo de sincronização com banco Sankhya.
+
+Tabelas espelhadas:
+TGFCAB
+TGFITE
+TGFPRO
+TGFPAR
+TGFVEN
+Regras:
+Script 1: carga inicial completa
+Script 2: atualização diária apenas movimentações do dia anterior
+Execução automática no final do dia
+Logs de sincronização
+Tela mostrando última atualização
+Layout / Design
+
+Seguir estilo moderno semelhante ao painel enviado na imagem:
+
+Conceito Visual
+Dark mode elegante
+Cards informativos
+Dashboard limpo
+Ícones modernos
+Tipografia bonita
+Bordas arredondadas
+Minimalista
+Mobile First
+Responsividade Total
+
+Funcionar perfeitamente em:
+
+Celular
+Tablet
+Notebook
+Monitor ultrawide
+Módulos do Sistema
+1. Dashboard
+
+Mostrar:
+
+Chamados abertos
+Liberações pendentes
+Clientes ativos
+Última sincronização Sankhya
+Atividades recentes
+Gráficos mensais
+2. Chamados
+
+Funções:
+
+Abrir chamado
+Editar
+Atribuir técnico
+Alterar status
+Filtros avançados
+Comentários internos
+Histórico completo
+3. Liberações
+
+Controle de acessos e aprovações.
+
+4. Clientes
+
+Cadastro completo + histórico.
+
+5. Produtos / Movimentações
+
+Consultar dados espelhados do Sankhya.
+
+6. Relatórios
+
+Exportar:
+
+Excel
+CSV
+PDF
+Segurança
+
+Implementar:
+
+Login seguro
+Sessão PHP
+Hash de senha
+Controle por perfil
+Sanitização de inputs
+Proteção SQL Injection
+Rate limit básico
+Logs de acesso
+Código
+
+Quero código:
+
+Simples de manter
+Bem estruturado
+Organizado por pastas
+Escalável
+Sem complexidade desnecessária
+Comentários Obrigatórios
+
+Todo arquivo deve conter comentários em português, explicando:
+
+O que aquele arquivo faz
+O que cada função faz
+O motivo de cada lógica
+Como alterar futuramente
+README.md Muito Completo
+
+Criar README profissional contendo:
+
+Instalação
+npm install
+npm run dev
+Configuração .env
+
+Exemplo:
+
+SUPABASE_URL=
+SUPABASE_KEY=
+PORT=3000
+Estrutura de pastas
+Como rodar local
+Como publicar
+Como conectar no Supabase
+Como alterar layout
+Como criar novos módulos
+Como fazer backup
+Troubleshooting
+Segurança recomendada
+Estrutura de Pastas Desejada
+/sistema-suporte
+ ├── /public
+ ├── /src
+ │   ├── /css
+ │   ├── /js
+ │   ├── /pages
+ │   ├── /components
+ │   ├── /php
+ │   ├── /api
+ │   └── /services
+ ├── server.js
+ ├── package.json
+ ├── README.md
+Resultado Esperado
+
+Quero receber um projeto completo, bonito, profissional, rápido e funcional.
+
+Prioridades:
+
+Facilidade de uso
+Responsividade
+Performance
+Código limpo
+Facilidade de manutenção
+Visual moderno
+Integração com Sankhya via espelhamento
+Importante
+
+Não use excesso de frameworks pesados.
+Prefira simplicidade + eficiência.
+
+Extra desejado
+
+Se possível incluir:
+
+Notificações toast
+Tema dark/light
+Pesquisa global
+Atalhos rápidos
+PWA futuro preparado
+Sistema pronto para expansão
