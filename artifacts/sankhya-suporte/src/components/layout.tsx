@@ -8,7 +8,8 @@ import {
   LogOut,
   Moon,
   Sun,
-  LayoutDashboard
+  LayoutDashboard,
+  KeyRound
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./theme-provider";
@@ -16,9 +17,10 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 
 const navigation = [
   { name: "Início", href: "/", icon: Home },
-  { name: "Relatórios", href: "/relatorios", icon: FileText },
+  { name: "Liberações", href: "/liberacoes", icon: KeyRound },
   { name: "Produtos", href: "/produtos", icon: Package },
   { name: "Clientes", href: "/clientes", icon: Users },
+  { name: "Relatórios", href: "/relatorios", icon: FileText },
 ];
 
 function SidebarContent({ pathname }: { pathname: string }) {
