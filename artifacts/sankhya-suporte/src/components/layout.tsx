@@ -1,40 +1,35 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { 
-  LayoutDashboard, 
-  Ticket, 
-  Users, 
-  Rocket, 
-  RefreshCw, 
-  FileBarChart,
+  Home,
+  FileText,
+  Package,
+  Users,
   LogOut,
-  Menu,
   Moon,
-  Sun
+  Sun,
+  LayoutDashboard
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTheme } from "./theme-provider";
-import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Chamados", href: "/chamados", icon: Ticket },
-  { name: "Liberações", href: "/liberacoes", icon: Rocket },
+  { name: "Início", href: "/", icon: Home },
+  { name: "Relatórios", href: "/relatorios", icon: FileText },
+  { name: "Produtos", href: "/produtos", icon: Package },
   { name: "Clientes", href: "/clientes", icon: Users },
-  { name: "Sincronização", href: "/sincronizacao", icon: RefreshCw },
-  { name: "Relatórios", href: "/relatorios", icon: FileBarChart },
 ];
 
 function SidebarContent({ pathname }: { pathname: string }) {
   return (
-    <div className="flex h-full flex-col gap-y-5 bg-sidebar px-6 py-4">
+    <div className="flex h-full flex-col gap-y-5 bg-card border-r border-border px-6 py-4">
       <div className="flex h-16 shrink-0 items-center">
         <div className="flex items-center gap-2 text-primary font-bold text-xl tracking-tight">
-          <div className="bg-primary text-primary-foreground p-1.5 rounded-md">
-            <Ticket size={20} />
+          <div className="bg-primary/10 text-primary p-1.5 rounded-md">
+            <LayoutDashboard size={20} />
           </div>
-          Sankhya Suporte
+          Suporte Sankhya
         </div>
       </div>
       <nav className="flex flex-1 flex-col">
@@ -48,15 +43,16 @@ function SidebarContent({ pathname }: { pathname: string }) {
                     <Link
                       href={item.href}
                       className={`
-                        group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-medium
+                        group flex items-center gap-x-3 rounded-md p-3 text-sm leading-6 font-medium transition-colors
                         ${isActive 
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                          : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"}
+                          ? "bg-primary/10 text-primary" 
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"}
                       `}
                     >
                       <item.icon
-                        className={`h-5 w-5 shrink-0 ${isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/70 group-hover:text-sidebar-foreground"}`}
+                        className={`h-5 w-5 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}
                         aria-hidden="true"
+                        strokeWidth={isActive ? 2.5 : 2}
                       />
                       {item.name}
                     </Link>
@@ -65,12 +61,12 @@ function SidebarContent({ pathname }: { pathname: string }) {
               })}
             </ul>
           </li>
-          <li className="mt-auto">
+          <li className="mt-auto pb-4">
             <Link
               href="/login"
-              className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-medium leading-6 text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              className="group -mx-2 flex items-center gap-x-3 rounded-md p-3 text-sm font-medium leading-6 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
-              <LogOut className="h-5 w-5 shrink-0 text-sidebar-foreground/70 group-hover:text-sidebar-foreground" aria-hidden="true" />
+              <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
               Sair
             </Link>
           </li>
@@ -85,75 +81,63 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      {/* Mobile sidebar */}
-      <div className="md:hidden flex items-center justify-between border-b border-border bg-card px-4 py-3">
-        <div className="flex items-center gap-2 text-primary font-bold text-lg">
-          <div className="bg-primary text-primary-foreground p-1 rounded">
-            <Ticket size={18} />
-          </div>
-          Sankhya Suporte
-        </div>
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72">
-              <SidebarContent pathname={pathname} />
-            </SheetContent>
-          </Sheet>
-        </div>
-      </div>
-
+    <div className="min-h-[100dvh] bg-background flex flex-col md:flex-row pb-16 md:pb-0">
+      
       {/* Desktop sidebar */}
-      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r border-sidebar-border z-10">
+      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-20">
         <SidebarContent pathname={pathname} />
       </div>
 
       {/* Main content */}
       <div className="flex flex-1 flex-col md:pl-64 min-w-0">
+        
         {/* Desktop Header */}
-        <header className="hidden md:flex h-16 shrink-0 items-center justify-between gap-x-4 border-b border-border bg-card px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 z-10">
-          <div className="flex flex-1">
-            <div className="text-sm font-medium text-muted-foreground">
-              Cockpit Operacional
-            </div>
-          </div>
-          <div className="flex items-center gap-x-4 lg:gap-x-6">
+        <header className="hidden md:flex h-16 shrink-0 items-center justify-end gap-x-4 px-8 z-10">
+          <div className="flex items-center gap-x-4">
             <Button
               variant="ghost"
               size="icon"
+              className="text-muted-foreground hover:text-foreground"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-            <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-border" aria-hidden="true" />
-            <div className="flex items-center gap-x-4">
-              <Avatar className="h-8 w-8 cursor-pointer border border-border">
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">JS</AvatarFallback>
+            <div className="h-6 w-px bg-border" aria-hidden="true" />
+            <div className="flex items-center gap-x-3 cursor-pointer">
+              <span className="text-sm font-medium text-foreground">TI</span>
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary/20 text-primary text-xs font-semibold">TI</AvatarFallback>
               </Avatar>
-              <span className="hidden lg:flex lg:items-center text-sm font-semibold leading-6 text-foreground">
-                João Silva
-              </span>
             </div>
           </div>
         </header>
 
         <main className="flex-1">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
             {children}
           </div>
         </main>
+      </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border flex items-center justify-around px-2 z-50">
+        {navigation.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          return (
+            <Link 
+              key={item.name} 
+              href={item.href}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <item.icon 
+                className="h-5 w-5" 
+                strokeWidth={isActive ? 2.5 : 2}
+                fill={isActive && item.name === 'Início' ? 'currentColor' : 'none'} 
+              />
+              <span className="text-[10px] font-medium">{item.name}</span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

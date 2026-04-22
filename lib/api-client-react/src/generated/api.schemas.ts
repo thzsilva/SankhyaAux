@@ -10,13 +10,13 @@ export interface HealthStatus {
 }
 
 export interface DashboardSummary {
-  openTickets: number;
-  pendingReleases: number;
   activeClients: number;
+  newClientsThisMonth: number;
+  releasesToday: number;
+  pendingReleases: number;
+  totalProducts: number;
   /** @nullable */
   lastSync: string | null;
-  totalTickets: number;
-  closedThisMonth: number;
 }
 
 export interface MonthlyCount {
@@ -128,6 +128,47 @@ export interface ReleaseUpdate {
   description?: string;
 }
 
+export interface Product {
+  id: number;
+  code: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  unit: string;
+  unitPrice: number;
+  stock: number;
+  category: string;
+  /** @nullable */
+  sankhyaCode?: string | null;
+  createdAt: string;
+}
+
+export interface ProductInput {
+  code: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  unit: string;
+  unitPrice: number;
+  stock: number;
+  category: string;
+  /** @nullable */
+  sankhyaCode?: string | null;
+}
+
+export interface ProductUpdate {
+  code?: string;
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  unit?: string;
+  unitPrice?: number;
+  stock?: number;
+  category?: string;
+  /** @nullable */
+  sankhyaCode?: string | null;
+}
+
 export type SyncStatusTablesItem = {
   name: string;
   /** @nullable */
@@ -145,4 +186,9 @@ export interface SyncStatus {
 export type ListTicketsParams = {
   status?: string;
   priority?: string;
+};
+
+export type ListProductsParams = {
+  search?: string;
+  category?: string;
 };

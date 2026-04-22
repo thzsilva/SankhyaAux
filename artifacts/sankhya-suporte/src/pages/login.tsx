@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Ticket, LogIn } from "lucide-react";
+import { LayoutDashboard, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,11 +23,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="bg-primary text-primary-foreground p-3 rounded-lg mb-4 shadow-sm">
-            <Ticket size={32} />
+          <div className="bg-primary/10 text-primary p-3 rounded-lg mb-4 shadow-sm">
+            <LayoutDashboard size={32} />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Sankhya Suporte</h1>
           <p className="text-muted-foreground mt-2">Cockpit Operacional para Equipes Técnicas</p>

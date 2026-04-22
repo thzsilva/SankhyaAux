@@ -7,11 +7,11 @@
  */
 
 export interface DashboardSummary {
-  openTickets: number;
-  pendingReleases: number;
   activeClients: number;
+  newClientsThisMonth: number;
+  releasesToday: number;
+  pendingReleases: number;
+  totalProducts: number;
   /** @nullable */
   lastSync: Date | null;
-  totalTickets: number;
-  closedThisMonth: number;
 }
