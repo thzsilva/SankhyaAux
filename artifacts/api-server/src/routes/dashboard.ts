@@ -6,6 +6,7 @@ import {
   releasesTable,
   clientsTable,
   syncStatusTable,
+  productsTable,
 } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
@@ -17,37 +18,35 @@ import {
 const router: IRouter = Router();
 
 router.get("/dashboard/summary", async (_req, res): Promise<void> => {
-  const [openT] = await db
+  const [actC] = await db
     .select({ c: sql<number>`count(*)::int` })
-    .from(ticketsTable)
-    .where(sql`${ticketsTable.status} <> 'fechado'`);
+    .from(clientsTable);
+  const [newC] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(clientsTable)
+    .where(sql`${clientsTable.createdAt} >= date_trunc('month', now())`);
+  const [relToday] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(releasesTable)
+    .where(sql`${releasesTable.createdAt} >= date_trunc('day', now())`);
   const [pendR] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(releasesTable)
     .where(eq(releasesTable.status, "pendente"));
-  const [actC] = await db
+  const [totalP] = await db
     .select({ c: sql<number>`count(*)::int` })
-    .from(clientsTable);
-  const [totalT] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(ticketsTable);
-  const [closedM] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(ticketsTable)
-    .where(
-      sql`${ticketsTable.status} = 'fechado' AND ${ticketsTable.closedAt} >= date_trunc('month', now())`,
-    );
+    .from(productsTable);
   const [lastSync] = await db
     .select({ ls: sql<Date | null>`max(${syncStatusTable.lastSync})` })
     .from(syncStatusTable);
 
   res.json(
     GetDashboardSummaryResponse.parse({
-      openTickets: openT?.c ?? 0,
-      pendingReleases: pendR?.c ?? 0,
       activeClients: actC?.c ?? 0,
-      totalTickets: totalT?.c ?? 0,
-      closedThisMonth: closedM?.c ?? 0,
+      newClientsThisMonth: newC?.c ?? 0,
+      releasesToday: relToday?.c ?? 0,
+      pendingReleases: pendR?.c ?? 0,
+      totalProducts: totalP?.c ?? 0,
       lastSync: lastSync?.ls ? new Date(lastSync.ls).toISOString() : null,
     }),
   );

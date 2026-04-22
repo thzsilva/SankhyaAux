@@ -4,9 +4,9 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { 
-  useListTickets, 
   useListClients,
-  useListReleases
+  useListReleases,
+  useListProducts
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";

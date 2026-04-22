@@ -18,12 +18,12 @@ export const HealthCheckResponse = zod.object({
  * @summary Dashboard KPIs
  */
 export const GetDashboardSummaryResponse = zod.object({
-  openTickets: zod.number(),
-  pendingReleases: zod.number(),
   activeClients: zod.number(),
+  newClientsThisMonth: zod.number(),
+  releasesToday: zod.number(),
+  pendingReleases: zod.number(),
+  totalProducts: zod.number(),
   lastSync: zod.coerce.date().nullable(),
-  totalTickets: zod.number(),
-  closedThisMonth: zod.number(),
 });
 
 export const GetTicketsByMonthResponseItem = zod.object({
@@ -251,6 +251,85 @@ export const UpdateReleaseResponse = zod.object({
 });
 
 export const DeleteReleaseParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListProductsQueryParams = zod.object({
+  search: zod.coerce.string().optional(),
+  category: zod.coerce.string().optional(),
+});
+
+export const ListProductsResponseItem = zod.object({
+  id: zod.number(),
+  code: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  unit: zod.string(),
+  unitPrice: zod.number(),
+  stock: zod.number(),
+  category: zod.string(),
+  sankhyaCode: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListProductsResponse = zod.array(ListProductsResponseItem);
+
+export const CreateProductBody = zod.object({
+  code: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  unit: zod.string(),
+  unitPrice: zod.number(),
+  stock: zod.number(),
+  category: zod.string(),
+  sankhyaCode: zod.string().nullish(),
+});
+
+export const GetProductParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetProductResponse = zod.object({
+  id: zod.number(),
+  code: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  unit: zod.string(),
+  unitPrice: zod.number(),
+  stock: zod.number(),
+  category: zod.string(),
+  sankhyaCode: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+export const UpdateProductParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateProductBody = zod.object({
+  code: zod.string().optional(),
+  name: zod.string().optional(),
+  description: zod.string().nullish(),
+  unit: zod.string().optional(),
+  unitPrice: zod.number().optional(),
+  stock: zod.number().optional(),
+  category: zod.string().optional(),
+  sankhyaCode: zod.string().nullish(),
+});
+
+export const UpdateProductResponse = zod.object({
+  id: zod.number(),
+  code: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  unit: zod.string(),
+  unitPrice: zod.number(),
+  stock: zod.number(),
+  category: zod.string(),
+  sankhyaCode: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+export const DeleteProductParams = zod.object({
   id: zod.coerce.number(),
 });
 

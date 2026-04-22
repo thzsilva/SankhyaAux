@@ -3,3 +3,4 @@ export * from "./tickets";
 export * from "./releases";
 export * from "./activity";
 export * from "./sync";
+export * from "./products";

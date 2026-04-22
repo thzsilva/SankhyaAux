@@ -12,6 +12,7 @@ tags:
   - name: tickets
   - name: clients
   - name: releases
+  - name: products
   - name: activity
   - name: sync
 paths:
@@ -303,6 +304,86 @@ paths:
         "204":
           description: deleted
 
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Product" }
+    post:
+      operationId: createProduct
+      tags: [products]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductInput" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductUpdate" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: deleted
+
   /sync/status:
     get:
       operationId: getSyncStatus
@@ -333,14 +414,14 @@ components:
 
     DashboardSummary:
       type: object
-      required: [openTickets, pendingReleases, activeClients, lastSync, totalTickets, closedThisMonth]
+      required: [activeClients, newClientsThisMonth, releasesToday, pendingReleases, totalProducts, lastSync]
       properties:
-        openTickets: { type: integer }
-        pendingReleases: { type: integer }
         activeClients: { type: integer }
+        newClientsThisMonth: { type: integer }
+        releasesToday: { type: integer }
+        pendingReleases: { type: integer }
+        totalProducts: { type: integer }
         lastSync: { type: ["string", "null"], format: date-time }
-        totalTickets: { type: integer }
-        closedThisMonth: { type: integer }
 
     MonthlyCount:
       type: object
@@ -459,6 +540,46 @@ components:
       properties:
         status: { type: string }
         description: { type: string }
+
+    Product:
+      type: object
+      required: [id, code, name, unit, unitPrice, stock, category, createdAt]
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        unit: { type: string }
+        unitPrice: { type: number }
+        stock: { type: integer }
+        category: { type: string }
+        sankhyaCode: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    ProductInput:
+      type: object
+      required: [code, name, unit, unitPrice, stock, category]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        unit: { type: string }
+        unitPrice: { type: number }
+        stock: { type: integer }
+        category: { type: string }
+        sankhyaCode: { type: ["string", "null"] }
+
+    ProductUpdate:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        unit: { type: string }
+        unitPrice: { type: number }
+        stock: { type: integer }
+        category: { type: string }
+        sankhyaCode: { type: ["string", "null"] }
 
     SyncStatus:
       type: object

@@ -10,11 +10,9 @@ import { AppLayout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
-import Tickets from "@/pages/tickets";
-import TicketDetail from "@/pages/ticket-detail";
 import Clients from "@/pages/clients";
 import Releases from "@/pages/releases";
-import SyncStatus from "@/pages/sync";
+import Products from "@/pages/products";
 import Reports from "@/pages/reports";
 
 const queryClient = new QueryClient();
@@ -24,20 +22,10 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       
-      {/* Protected Routes (Visual only) */}
+      {/* Protected Routes */}
       <Route path="/">
         <AppLayout>
           <Dashboard />
-        </AppLayout>
-      </Route>
-      <Route path="/chamados">
-        <AppLayout>
-          <Tickets />
-        </AppLayout>
-      </Route>
-      <Route path="/chamados/:id">
-        <AppLayout>
-          <TicketDetail />
         </AppLayout>
       </Route>
       <Route path="/liberacoes">
@@ -50,9 +38,9 @@ function Router() {
           <Clients />
         </AppLayout>
       </Route>
-      <Route path="/sincronizacao">
+      <Route path="/produtos">
         <AppLayout>
-          <SyncStatus />
+          <Products />
         </AppLayout>
       </Route>
       <Route path="/relatorios">
@@ -73,7 +61,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="sankhya-theme">
+      <ThemeProvider defaultTheme="dark" storageKey="sankhya-theme">
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
