@@ -1,10 +1,34 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+export type Role = "SA" | "only_read" | "robot" | "human";
+
+export const ROLE_LABEL: Record<Role, string> = {
+  SA: "Super Admin",
+  only_read: "Somente leitura",
+  robot: "Robo",
+  human: "Usuario",
+};
+
+export const ROLE_BADGE: Record<Role, string> = {
+  SA: "bg-violet-100 text-violet-700 ring-violet-200",
+  only_read: "bg-slate-100 text-slate-700 ring-slate-200",
+  robot: "bg-sky-100 text-sky-700 ring-sky-200",
+  human: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+};
+
+export function canWrite(role: Role): boolean {
+  return role === "SA" || role === "robot";
+}
+
+export function isAdmin(role: Role): boolean {
+  return role === "SA";
+}
+
 export interface AuthUser {
   id: number;
   email: string;
   name: string;
-  role: string;
+  role: Role;
 }
 
 interface AuthContextValue {

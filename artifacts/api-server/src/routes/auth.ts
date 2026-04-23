@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { canWrite, isAdmin, isRole, type Role } from "../lib/roles";
 
 const router: IRouter = Router();
 
@@ -17,7 +18,7 @@ export interface AuthUser {
   id: number;
   email: string;
   name: string;
-  role: string;
+  role: Role;
 }
 
 export interface AuthedRequest extends Request {
@@ -33,6 +34,10 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   const token = header.slice("Bearer ".length);
   try {
     const payload = jwt.verify(token, SECRET) as AuthUser & { iat: number; exp: number };
+    if (!isRole(payload.role)) {
+      res.status(401).json({ error: "Papel de usuario invalido" });
+      return;
+    }
     req.user = {
       id: payload.id,
       email: payload.email,
@@ -72,6 +77,10 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       return;
     }
 
+    if (!isRole(user.role)) {
+      res.status(500).json({ error: "Papel de usuario invalido no banco" });
+      return;
+    }
     const authUser: AuthUser = {
       id: user.id,
       email: user.email,
@@ -90,5 +99,21 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 router.get("/auth/me", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   res.json({ user: req.user });
 });
+
+export function requireWrite(req: AuthedRequest, res: Response, next: NextFunction): void {
+  if (!req.user || !canWrite(req.user.role)) {
+    res.status(403).json({ error: "Sem permissao de gravacao" });
+    return;
+  }
+  next();
+}
+
+export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction): void {
+  if (!req.user || !isAdmin(req.user.role)) {
+    res.status(403).json({ error: "Acesso restrito ao administrador" });
+    return;
+  }
+  next();
+}
 
 export default router;

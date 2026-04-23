@@ -9,7 +9,7 @@ import NotFound from "@/pages/not-found";
 import Products from "@/pages/products";
 import Reports from "@/pages/reports";
 import Login from "@/pages/login";
-import { AuthProvider, useAuth } from "@/lib/auth";
+import { AuthProvider, ROLE_BADGE, ROLE_LABEL, useAuth } from "@/lib/auth";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +54,16 @@ function AppShell({ children }: { children: ReactNode }) {
             <p className="mt-0.5 text-xs text-slate-500">{formatDate()}</p>
           </div>
           <div className="flex items-center gap-2">
+            {user && (
+              <div className="hidden text-right sm:block">
+                <p className="text-xs font-semibold text-slate-700 leading-tight">{user.name}</p>
+                <span
+                  className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ROLE_BADGE[user.role]}`}
+                >
+                  {ROLE_LABEL[user.role]}
+                </span>
+              </div>
+            )}
             <button
               type="button"
               onClick={logout}
@@ -63,8 +73,8 @@ function AppShell({ children }: { children: ReactNode }) {
               <LogOut className="h-4 w-4" />
             </button>
             <div
-              title={user?.name}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200"
+              title={user ? `${user.name} (${ROLE_LABEL[user.role]})` : undefined}
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ring-1 ${user ? ROLE_BADGE[user.role] : "bg-slate-100 text-slate-500 ring-slate-200"}`}
             >
               {user ? initials(user.name) : "?"}
             </div>
