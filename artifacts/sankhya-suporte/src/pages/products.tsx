@@ -1,567 +1,180 @@
-import { useState } from "react";
-import { Plus, Search, Filter, PackageOpen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useMemo, useState } from "react";
+import { useGetProduct, useListProducts, type Product } from "@workspace/api-client-react";
 
-import { 
-  useListProducts, 
-  useCreateProduct,
-  useUpdateProduct,
-  useDeleteProduct,
-  getListProductsQueryKey
-} from "@workspace/api-client-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-
-const formSchema = z.object({
-  code: z.string().min(1, { message: "Código é obrigatório" }),
-  name: z.string().min(3, { message: "Nome deve ter no mínimo 3 caracteres" }),
-  description: z.string().optional(),
-  unit: z.string().min(1, { message: "Unidade é obrigatória" }),
-  unitPrice: z.coerce.number().min(0, { message: "Preço deve ser maior ou igual a 0" }),
-  stock: z.coerce.number().min(0, { message: "Estoque deve ser maior ou igual a 0" }),
-  category: z.string().min(1, { message: "Categoria é obrigatória" }),
-  sankhyaCode: z.string().optional(),
-});
-
-type ProductFormValues = z.infer<typeof formSchema>;
+const PAGE_SIZE = 10;
 
 export default function Products() {
-  const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<number | null>(null);
-  const [productToDelete, setProductToDelete] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const { data: products, isLoading } = useListProducts();
-  const createProduct = useCreateProduct();
-  const updateProduct = useUpdateProduct();
-  const deleteProduct = useDeleteProduct();
+  const { data, isLoading, isError } = useListProducts();
+  const selectedQuery = useGetProduct(selectedId ?? 0);
 
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      code: "",
-      name: "",
-      description: "",
-      unit: "UN",
-      unitPrice: 0,
-      stock: 0,
-      category: "Geral",
-      sankhyaCode: "",
-    },
-  });
+  const categories = useMemo(() => {
+    const values = new Set((data ?? []).map((item) => item.category).filter(Boolean));
+    return Array.from(values).sort();
+  }, [data]);
 
-  const categories = Array.from(new Set(products?.map(p => p.category) || [])).filter(Boolean);
-
-  const handleEdit = (product: any) => {
-    setEditingProduct(product.id);
-    form.reset({
-      code: product.code,
-      name: product.name,
-      description: product.description || "",
-      unit: product.unit,
-      unitPrice: product.unitPrice,
-      stock: product.stock,
-      category: product.category,
-      sankhyaCode: product.sankhyaCode || "",
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (data ?? []).filter((item) => {
+      const matchesSearch =
+        !term ||
+        item.code.toLowerCase().includes(term) ||
+        item.name.toLowerCase().includes(term) ||
+        (item.sankhyaCode ?? "").toLowerCase().includes(term);
+      const matchesCategory = category === "all" || item.category === category;
+      return matchesSearch && matchesCategory;
     });
-    setIsDialogOpen(true);
-  };
+  }, [category, data, search]);
 
-  const handleOpenDialog = () => {
-    setEditingProduct(null);
-    form.reset({
-      code: "",
-      name: "",
-      description: "",
-      unit: "UN",
-      unitPrice: 0,
-      stock: 0,
-      category: "Geral",
-      sankhyaCode: "",
-    });
-    setIsDialogOpen(true);
-  };
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const onSubmit = (values: ProductFormValues) => {
-    if (editingProduct) {
-      updateProduct.mutate({
-        id: editingProduct,
-        data: values
-      }, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-          toast.success("Produto atualizado com sucesso!");
-          setIsDialogOpen(false);
-        },
-        onError: () => {
-          toast.error("Erro ao atualizar produto.");
-        }
-      });
-    } else {
-      createProduct.mutate({
-        data: values
-      }, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-          toast.success("Produto criado com sucesso!");
-          setIsDialogOpen(false);
-        },
-        onError: () => {
-          toast.error("Erro ao criar produto.");
-        }
-      });
-    }
-  };
-
-  const handleDelete = () => {
-    if (!productToDelete) return;
-    
-    deleteProduct.mutate({ id: productToDelete }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
-        toast.success("Produto excluído com sucesso!");
-        setProductToDelete(null);
-      },
-      onError: () => {
-        toast.error("Erro ao excluir produto.");
-        setProductToDelete(null);
-      }
-    });
-  };
-
-  const filteredProducts = products?.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          product.code.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
+  const selectedProduct = (selectedQuery.data ?? null) as Product | null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
-          <p className="text-muted-foreground mt-1">Catálogo e movimentações de produtos integrados.</p>
-        </div>
-        
-        <Button onClick={handleOpenDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Produto
-        </Button>
-      </div>
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold tracking-tight">Produtos</h2>
+        <p className="mt-1 text-sm text-slate-600">Consulta de produtos sem operacoes de cadastro, edicao ou exclusao.</p>
+      </section>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{editingProduct ? "Editar Produto" : "Cadastrar Produto"}</DialogTitle>
-            <DialogDescription>
-              Preencha os dados do produto para sincronização.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código Interno</FormLabel>
-                      <FormControl>
-                        <Input placeholder="PRD-001" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="sankhyaCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cód. Sankhya (Opcional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: 5020" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Produto</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nome descritivo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Categoria</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: Hardware" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="unit"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Unidade</FormLabel>
-                      <FormControl>
-                        <Input placeholder="UN, KG, PC" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="stock"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estoque</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="unitPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Preço Unitário (R$)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição (Opcional)</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Detalhes adicionais..."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={createProduct.isPending || updateProduct.isPending}>
-                  {(createProduct.isPending || updateProduct.isPending) ? "Salvando..." : "Salvar Produto"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
+        <input
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Buscar por codigo, nome ou referencia"
+          className="h-10 rounded-md border border-slate-300 px-3 text-sm outline-none ring-emerald-500 focus:ring-2"
+        />
+        <select
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value);
+            setPage(1);
+          }}
+          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none ring-emerald-500 focus:ring-2"
+        >
+          <option value="all">Todas as categorias</option>
+          {categories.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+        <div className="flex items-center text-sm text-slate-500">Total: {filtered.length} registros</div>
+      </section>
 
-      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Confirmar Exclusão
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <div className="flex flex-col sm:flex-row gap-4 items-center bg-card p-4 rounded-lg border shadow-sm">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou código..."
-            className="pl-9 w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex w-full sm:w-auto">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                <span>Categoria</span>
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Desktop Table View */}
-      <div className="hidden md:block bg-card rounded-lg border shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50 border-b-border">
-              <TableHead className="w-[100px]">Código</TableHead>
-              <TableHead>Produto</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead className="text-right">Preço</TableHead>
-              <TableHead className="text-right">Estoque</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-[200px] mb-1" />
-                    <Skeleton className="h-3 w-[150px]" />
-                  </TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-10 ml-auto" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto rounded-md" /></TableCell>
-                </TableRow>
-              ))
-            ) : filteredProducts?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                  <div className="flex flex-col items-center justify-center">
-                    <PackageOpen className="h-8 w-8 text-muted-foreground mb-2" />
-                    Nenhum produto encontrado.
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredProducts?.map((product) => (
-                <TableRow key={product.id} className="hover:bg-muted/30 transition-colors border-b-border/50">
-                  <TableCell>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {product.code}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium text-foreground">{product.name}</div>
-                    {product.description && (
-                      <div className="text-xs text-muted-foreground line-clamp-1 max-w-[300px]">
-                        {product.description}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground">
-                      {product.category}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(product.unitPrice)}
-                    <span className="text-xs text-muted-foreground ml-1">/{product.unit}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className={`font-medium ${product.stock <= 0 ? 'text-destructive' : 'text-primary'}`}>
-                      {product.stock}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(product)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-destructive focus:bg-destructive/10"
-                          onClick={() => setProductToDelete(product.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Codigo</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Nome</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Referencia</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-600">Categoria</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-slate-600">Acoes</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {isLoading && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                  Carregando produtos...
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-card p-4 rounded-lg border">
-              <Skeleton className="h-5 w-3/4 mb-2" />
-              <Skeleton className="h-4 w-1/2 mb-4" />
-              <div className="flex justify-between">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            </div>
-          ))
-        ) : filteredProducts?.length === 0 ? (
-          <div className="bg-card p-8 rounded-lg border text-center text-muted-foreground">
-            <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            Nenhum produto encontrado.
-          </div>
-        ) : (
-          filteredProducts?.map((product) => (
-            <div key={product.id} className="bg-card p-4 rounded-lg border relative group">
-              <div className="flex justify-between items-start mb-2">
-                <div className="pr-8">
-                  <div className="font-mono text-[10px] text-muted-foreground mb-1">{product.code}</div>
-                  <h3 className="font-semibold text-foreground">{product.name}</h3>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0 absolute top-3 right-3">
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(product)}>
-                      <Pencil className="mr-2 h-4 w-4" /> Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-destructive focus:bg-destructive/10"
-                      onClick={() => setProductToDelete(product.id)}
+            {isError && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-rose-600">
+                  Erro ao carregar produtos.
+                </td>
+              </tr>
+            )}
+            {!isLoading && !isError && pageItems.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                  Nenhum produto encontrado.
+                </td>
+              </tr>
+            )}
+            {!isLoading &&
+              !isError &&
+              pageItems.map((item) => (
+                <tr key={item.id}>
+                  <td className="px-4 py-3 text-sm font-medium">{item.code}</td>
+                  <td className="px-4 py-3 text-sm">{item.name}</td>
+                  <td className="px-4 py-3 text-sm">{item.sankhyaCode ?? "-"}</td>
+                  <td className="px-4 py-3 text-sm">{item.category}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                      onClick={() => setSelectedId(item.id)}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              
-              {product.description && (
-                <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{product.description}</p>
-              )}
-              
-              <div className="flex items-center gap-2 mb-4">
-                <span className="bg-secondary text-secondary-foreground text-[10px] px-2 py-0.5 rounded-full font-medium">
-                  {product.category}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-end pt-3 border-t border-border/50">
-                <div>
-                  <span className="text-[10px] text-muted-foreground block mb-0.5">Estoque</span>
-                  <span className={`text-sm font-bold ${product.stock <= 0 ? 'text-destructive' : 'text-primary'}`}>
-                    {product.stock} {product.unit}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-muted-foreground block mb-0.5">Preço Unit.</span>
-                  <span className="text-sm font-bold">{formatCurrency(product.unitPrice)}</span>
-                </div>
-              </div>
+                      Ver detalhes
+                    </button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <p className="text-sm text-slate-500">
+          Pagina {page} de {totalPages}
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-50"
+          >
+            Proxima
+          </button>
+        </div>
+      </section>
+
+      {selectedId && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Detalhes do Produto</h3>
+            <button type="button" onClick={() => setSelectedId(null)} className="text-sm text-slate-600 underline">
+              Fechar
+            </button>
+          </div>
+          {selectedQuery.isLoading && <p className="text-sm text-slate-500">Carregando detalhes...</p>}
+          {selectedQuery.isError && <p className="text-sm text-rose-600">Erro ao carregar detalhes do produto.</p>}
+          {selectedProduct && (
+            <div className="grid gap-2 text-sm sm:grid-cols-2">
+              <p><strong>Codigo:</strong> {selectedProduct.code}</p>
+              <p><strong>Nome:</strong> {selectedProduct.name}</p>
+              <p><strong>Referencia:</strong> {selectedProduct.sankhyaCode ?? "-"}</p>
+              <p><strong>Categoria:</strong> {selectedProduct.category}</p>
+              <p><strong>Unidade:</strong> {selectedProduct.unit}</p>
+              <p><strong>Estoque:</strong> {selectedProduct.stock}</p>
+              <p><strong>Preco:</strong> R$ {selectedProduct.unitPrice.toFixed(2)}</p>
+              <p><strong>Criado em:</strong> {new Date(selectedProduct.createdAt).toLocaleDateString("pt-BR")}</p>
+              <p className="sm:col-span-2"><strong>Descricao:</strong> {selectedProduct.description || "-"}</p>
             </div>
-          ))
-        )}
-      </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

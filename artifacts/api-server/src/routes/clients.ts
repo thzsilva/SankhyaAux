@@ -1,44 +1,38 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, clientsTable } from "@workspace/db";
+import { supabase } from "../app";
+import { logger } from "../lib/logger";
 import {
   ListClientsResponse,
-  CreateClientBody,
   GetClientParams,
   GetClientResponse,
-  UpdateClientParams,
-  UpdateClientBody,
-  UpdateClientResponse,
-  DeleteClientParams,
 } from "@workspace/api-zod";
-import { logActivity } from "../lib/log-activity";
 
 const router: IRouter = Router();
 
 router.get("/clients", async (_req, res): Promise<void> => {
-  const rows = await db
-    .select()
-    .from(clientsTable)
-    .orderBy(desc(clientsTable.createdAt));
-  res.json(ListClientsResponse.parse(rows));
-});
+  const { data, error } = await supabase
+    .from("tgfpar")
+    .select("*")
+    .order("dtcad", { ascending: false });
 
-router.post("/clients", async (req, res): Promise<void> => {
-  const parsed = CreateClientBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  if (error) {
+    logger.error({ err: error }, "Failed to query tgfpar clients");
+    res.status(500).json({ error: "Erro interno ao buscar clientes" });
     return;
   }
-  const [created] = await db
-    .insert(clientsTable)
-    .values(parsed.data)
-    .returning();
-  if (!created) {
-    res.status(500).json({ error: "Failed" });
-    return;
-  }
-  await logActivity("criou", "cliente", `Novo cliente: ${created.name}`);
-  res.status(201).json(GetClientResponse.parse(created));
+
+  const clients = (data ?? []).map((row: any) => ({
+    id: Number(row.codparc ?? 0),
+    name: String(row.nomeparc ?? ""),
+    sankhyaCode: String(row.codparc ?? ""),
+    cnpj: String(row.cgc_cpf ?? ""),
+    phone: String(row.telefone ?? ""),
+    email: String(row.email ?? ""),
+    notes: row.razaosocial ? String(row.razaosocial) : null,
+    createdAt: row.dtcad ? new Date(String(row.dtcad)) : new Date(),
+  }));
+
+  res.json(ListClientsResponse.parse(clients));
 });
 
 router.get("/clients/:id", async (req, res): Promise<void> => {
@@ -47,57 +41,36 @@ router.get("/clients/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [row] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, params.data.id));
-  if (!row) {
-    res.status(404).json({ error: "Cliente não encontrado" });
-    return;
-  }
-  res.json(GetClientResponse.parse(row));
-});
 
-router.patch("/clients/:id", async (req, res): Promise<void> => {
-  const params = UpdateClientParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const parsed = UpdateClientBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const [updated] = await db
-    .update(clientsTable)
-    .set(parsed.data)
-    .where(eq(clientsTable.id, params.data.id))
-    .returning();
-  if (!updated) {
-    res.status(404).json({ error: "Cliente não encontrado" });
-    return;
-  }
-  await logActivity("atualizou", "cliente", `Cliente ${updated.name} atualizado`);
-  res.json(UpdateClientResponse.parse(updated));
-});
+  const { data, error } = await supabase
+    .from("tgfpar")
+    .select("*")
+    .eq("codparc", params.data.id)
+    .maybeSingle();
 
-router.delete("/clients/:id", async (req, res): Promise<void> => {
-  const params = DeleteClientParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+  if (error) {
+    logger.error({ err: error }, "Failed to query tgfpar client by id");
+    res.status(500).json({ error: "Erro interno ao buscar cliente" });
     return;
   }
-  const [deleted] = await db
-    .delete(clientsTable)
-    .where(eq(clientsTable.id, params.data.id))
-    .returning();
-  if (!deleted) {
+
+  if (!data) {
     res.status(404).json({ error: "Cliente não encontrado" });
     return;
   }
-  await logActivity("excluiu", "cliente", `Cliente ${deleted.name} excluído`);
-  res.sendStatus(204);
+
+  const client = {
+    id: Number(data.codparc ?? 0),
+    name: String(data.nomeparc ?? ""),
+    sankhyaCode: String(data.codparc ?? ""),
+    cnpj: String(data.cgc_cpf ?? ""),
+    phone: String(data.telefone ?? ""),
+    email: String(data.email ?? ""),
+    notes: data.razaosocial ? String(data.razaosocial) : null,
+    createdAt: data.dtcad ? new Date(String(data.dtcad)) : new Date(),
+  };
+
+  res.json(GetClientResponse.parse(client));
 });
 
 export default router;

@@ -1,23 +1,28 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, or, ilike, and } from "drizzle-orm";
-import { db, productsTable } from "@workspace/db";
+import { supabase } from "../app";
+import { logger } from "../lib/logger";
 import {
   ListProductsQueryParams,
   ListProductsResponse,
-  CreateProductBody,
   GetProductParams,
   GetProductResponse,
-  UpdateProductParams,
-  UpdateProductBody,
-  UpdateProductResponse,
-  DeleteProductParams,
 } from "@workspace/api-zod";
-import { logActivity } from "../lib/log-activity";
 
 const router: IRouter = Router();
 
-function serialize(p: typeof productsTable.$inferSelect) {
-  return { ...p, unitPrice: Number(p.unitPrice) };
+function serialize(row: any) {
+  return {
+    id: Number(row.codprod ?? 0),
+    code: String(row.referencia ?? ""),
+    name: String(row.descrprod ?? ""),
+    description: row.descrprod ? String(row.descrprod) : null,
+    unit: String(row.codvol ?? "UN"),
+    unitPrice: 0,
+    stock: 0,
+    category: row.codgrupoprod != null ? String(row.codgrupoprod) : "",
+    sankhyaCode: String(row.codprod ?? ""),
+    createdAt: row.dtalter ? new Date(String(row.dtalter)) : new Date(),
+  };
 }
 
 router.get("/products", async (req, res): Promise<void> => {
@@ -26,44 +31,26 @@ router.get("/products", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const conds = [];
+
+  let query = supabase.from("tgfpro").select("*");
+
   if (parsed.data.search) {
     const q = `%${parsed.data.search}%`;
-    conds.push(
-      or(
-        ilike(productsTable.name, q),
-        ilike(productsTable.code, q),
-        ilike(productsTable.description, q),
-      ),
-    );
+    query = query.or(`descrprod.ilike.${q},referencia.ilike.${q}`);
   }
-  if (parsed.data.category)
-    conds.push(eq(productsTable.category, parsed.data.category));
 
-  const rows = await db
-    .select()
-    .from(productsTable)
-    .where(conds.length ? and(...conds) : undefined)
-    .orderBy(desc(productsTable.createdAt));
-  res.json(ListProductsResponse.parse(rows.map(serialize)));
-});
+  if (parsed.data.category) {
+    query = query.eq("codgrupoprod", Number(parsed.data.category));
+  }
 
-router.post("/products", async (req, res): Promise<void> => {
-  const parsed = CreateProductBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+  const { data, error } = await query.order("dtalter", { ascending: false });
+  if (error) {
+    logger.error({ err: error }, "Failed to query tgfpro products");
+    res.status(500).json({ error: "Erro interno ao buscar produtos" });
     return;
   }
-  const [created] = await db
-    .insert(productsTable)
-    .values({ ...parsed.data, unitPrice: String(parsed.data.unitPrice) })
-    .returning();
-  if (!created) {
-    res.status(500).json({ error: "Failed" });
-    return;
-  }
-  await logActivity("criou", "produto", `Novo produto: ${created.name}`);
-  res.status(201).json(GetProductResponse.parse(serialize(created)));
+
+  res.json(ListProductsResponse.parse((data ?? []).map(serialize)));
 });
 
 router.get("/products/:id", async (req, res): Promise<void> => {
@@ -72,60 +59,25 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [row] = await db
-    .select()
-    .from(productsTable)
-    .where(eq(productsTable.id, params.data.id));
-  if (!row) {
-    res.status(404).json({ error: "Produto não encontrado" });
-    return;
-  }
-  res.json(GetProductResponse.parse(serialize(row)));
-});
 
-router.patch("/products/:id", async (req, res): Promise<void> => {
-  const params = UpdateProductParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const parsed = UpdateProductBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
-  }
-  const updateData: Record<string, unknown> = { ...parsed.data };
-  if (parsed.data.unitPrice !== undefined)
-    updateData.unitPrice = String(parsed.data.unitPrice);
-  const [updated] = await db
-    .update(productsTable)
-    .set(updateData)
-    .where(eq(productsTable.id, params.data.id))
-    .returning();
-  if (!updated) {
-    res.status(404).json({ error: "Produto não encontrado" });
-    return;
-  }
-  await logActivity("atualizou", "produto", `Produto ${updated.name} atualizado`);
-  res.json(UpdateProductResponse.parse(serialize(updated)));
-});
+  const { data, error } = await supabase
+    .from("tgfpro")
+    .select("*")
+    .eq("codprod", params.data.id)
+    .maybeSingle();
 
-router.delete("/products/:id", async (req, res): Promise<void> => {
-  const params = DeleteProductParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+  if (error) {
+    logger.error({ err: error }, "Failed to query tgfpro product by id");
+    res.status(500).json({ error: "Erro interno ao buscar produto" });
     return;
   }
-  const [deleted] = await db
-    .delete(productsTable)
-    .where(eq(productsTable.id, params.data.id))
-    .returning();
-  if (!deleted) {
+
+  if (!data) {
     res.status(404).json({ error: "Produto não encontrado" });
     return;
   }
-  await logActivity("excluiu", "produto", `Produto ${deleted.name} excluído`);
-  res.sendStatus(204);
+
+  res.json(GetProductResponse.parse(serialize(data)));
 });
 
 export default router;
