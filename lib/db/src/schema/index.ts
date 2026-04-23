@@ -6,3 +6,4 @@ export * from "./sync";
 export * from "./products";
 export * from "./tgfpar";
 export * from "./tgfpro";
+export * from "./users";

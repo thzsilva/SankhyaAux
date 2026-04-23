@@ -5,10 +5,8 @@
  * Sankhya Support System API
  * OpenAPI spec version: 0.1.0
  */
+import type { AuthUser } from './authUser';
 
-export interface ReleaseInput {
-  clientId: number;
-  requestedBy: string;
-  description: string;
-  status?: string;
+export interface MeResponse {
+  user: AuthUser;
 }

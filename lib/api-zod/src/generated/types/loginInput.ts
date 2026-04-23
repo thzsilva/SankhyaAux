@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ReleaseInput {
-  clientId: number;
-  requestedBy: string;
-  description: string;
-  status?: string;
+export interface LoginInput {
+  email: string;
+  password: string;
 }
