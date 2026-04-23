@@ -11,54 +11,54 @@ const tiles = [
     title: "Relatorios",
     description: "Visualize e exporte dados do sistema",
     icon: FileText,
-    color: "text-sky-300",
-    bg: "bg-sky-500/15",
-    ring: "ring-sky-400/20",
+    color: "text-sky-700",
+    bg: "bg-sky-100",
+    ring: "ring-sky-200",
   },
   {
     href: "/liberacoes",
     title: "Liberacoes",
     description: "Aprovacoes e controle de acesso",
     icon: ShieldCheck,
-    color: "text-emerald-300",
-    bg: "bg-emerald-500/15",
-    ring: "ring-emerald-400/20",
+    color: "text-emerald-700",
+    bg: "bg-emerald-100",
+    ring: "ring-emerald-200",
   },
   {
     href: "/clientes",
     title: "Clientes",
     description: "Cadastro e historico de clientes",
     icon: UserPlus,
-    color: "text-rose-300",
-    bg: "bg-rose-500/15",
-    ring: "ring-rose-400/20",
+    color: "text-rose-700",
+    bg: "bg-rose-100",
+    ring: "ring-rose-200",
   },
   {
     href: "/produtos",
     title: "Produtos",
     description: "Consulta e movimentacoes",
     icon: PackageSearch,
-    color: "text-amber-300",
-    bg: "bg-amber-500/15",
-    ring: "ring-amber-400/20",
+    color: "text-amber-700",
+    bg: "bg-amber-100",
+    ring: "ring-amber-200",
   },
 ] as const;
 
 const statusStyles: Record<string, { label: string; cls: string; dot: string }> = {
   ok: {
     label: "OK",
-    cls: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/30",
-    dot: "bg-emerald-400",
+    cls: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    dot: "bg-emerald-500",
   },
   pendente: {
     label: "Pendente",
-    cls: "bg-amber-500/15 text-amber-300 ring-amber-400/30",
-    dot: "bg-amber-400",
+    cls: "bg-amber-50 text-amber-700 ring-amber-200",
+    dot: "bg-amber-500",
   },
   alerta: {
     label: "Alerta",
-    cls: "bg-rose-500/15 text-rose-300 ring-rose-400/30",
-    dot: "bg-rose-400",
+    cls: "bg-rose-50 text-rose-700 ring-rose-200",
+    dot: "bg-rose-500",
   },
 };
 
@@ -89,21 +89,21 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <section className="grid gap-3 sm:grid-cols-2">
-        <article className="rounded-2xl bg-[#15181d] p-4 ring-1 ring-white/5">
-          <p className="text-xs font-medium text-slate-400">Clientes ativos</p>
-          <p className="mt-2 text-3xl font-bold text-white">
+        <article className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+          <p className="text-xs font-medium text-slate-500">Clientes ativos</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900">
             {isLoading ? "..." : summary?.activeClients ?? 0}
           </p>
-          <p className="mt-1 text-xs text-emerald-400">
+          <p className="mt-1 text-xs font-medium text-emerald-600">
             +{summary?.newClientsThisMonth ?? 0} este mes
           </p>
         </article>
-        <article className="rounded-2xl bg-[#15181d] p-4 ring-1 ring-white/5">
-          <p className="text-xs font-medium text-slate-400">Liberacoes hoje</p>
-          <p className="mt-2 text-3xl font-bold text-white">
+        <article className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
+          <p className="text-xs font-medium text-slate-500">Liberacoes hoje</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900">
             {isLoading ? "..." : summary?.releasesToday ?? 0}
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             {summary?.pendingReleases ?? 0} pendentes
           </p>
         </article>
@@ -116,14 +116,14 @@ export default function Dashboard() {
             <Link
               key={tile.href}
               href={tile.href}
-              className="group flex flex-col rounded-2xl bg-[#15181d] p-4 ring-1 ring-white/5 transition hover:bg-[#1a1e24] hover:ring-white/10"
+              className="group flex flex-col rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300"
             >
               <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${tile.bg} ${tile.color} ring-1 ${tile.ring}`}>
                 <Icon className="h-5 w-5" />
               </span>
-              <p className="mt-3 text-base font-semibold text-white">{tile.title}</p>
-              <p className="mt-1 text-xs leading-snug text-slate-400">{tile.description}</p>
-              <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-300 transition group-hover:text-emerald-300">
+              <p className="mt-3 text-base font-semibold text-slate-900">{tile.title}</p>
+              <p className="mt-1 text-xs leading-snug text-slate-500">{tile.description}</p>
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600 transition group-hover:text-emerald-700">
                 Acessar <ArrowRight className="h-3 w-3" />
               </span>
             </Link>
@@ -141,13 +141,13 @@ export default function Dashboard() {
             return (
               <article
                 key={item.id}
-                className="flex items-center justify-between rounded-2xl bg-[#15181d] p-4 ring-1 ring-white/5"
+                className="flex items-center justify-between rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm"
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${status.dot}`} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{item.description}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{formatRelativeTime(item.createdAt)}</p>
+                    <p className="truncate text-sm font-semibold text-slate-900">{item.description}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{formatRelativeTime(item.createdAt)}</p>
                   </div>
                 </div>
                 <span
@@ -159,7 +159,7 @@ export default function Dashboard() {
             );
           })}
           {(!activity || activity.length === 0) && (
-            <p className="rounded-2xl bg-[#15181d] p-4 text-center text-sm text-slate-400 ring-1 ring-white/5">
+            <p className="rounded-2xl bg-white p-4 text-center text-sm text-slate-500 ring-1 ring-slate-200 shadow-sm">
               Sem atividades recentes.
             </p>
           )}

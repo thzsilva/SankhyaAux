@@ -36,14 +36,14 @@ function AppShell({ children }: { children: ReactNode }) {
   const title = titleByPath[pathname] ?? "Painel";
 
   return (
-    <div className="min-h-screen bg-[#0b0d10] text-slate-100">
-      <header className="sticky top-0 z-20 border-b border-white/5 bg-[#0b0d10]/90 backdrop-blur">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-5 py-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">{title}</h1>
-            <p className="mt-0.5 text-xs text-slate-400">{formatDate()}</p>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">{title}</h1>
+            <p className="mt-0.5 text-xs text-slate-500">{formatDate()}</p>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-400/30">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200">
             TI
           </div>
         </div>
@@ -51,7 +51,7 @@ function AppShell({ children }: { children: ReactNode }) {
 
       <main className="mx-auto w-full max-w-3xl px-5 pb-28 pt-5">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/5 bg-[#0b0d10]/95 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-around px-2 py-2">
           {tabs.map((tab) => {
             const isActive = pathname === tab.href;
@@ -61,7 +61,7 @@ function AppShell({ children }: { children: ReactNode }) {
                 key={tab.href}
                 href={tab.href}
                 className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[11px] font-medium transition ${
-                  isActive ? "text-emerald-400" : "text-slate-400 hover:text-slate-200"
+                  isActive ? "text-emerald-600" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.4]" : ""}`} />
@@ -113,7 +113,7 @@ export default function App() {
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <AppRoutes />
       </WouterRouter>
-      <Toaster theme="dark" richColors position="top-right" />
+      <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );
 }
