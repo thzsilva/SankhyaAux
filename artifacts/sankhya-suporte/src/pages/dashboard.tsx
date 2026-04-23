@@ -1,5 +1,6 @@
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { Link } from "wouter";
+import { ExportReports } from "@/components/export-reports";
 
 const summaryItems = [
   { key: "activeClients", label: "Clientes ativos" },
@@ -41,6 +42,8 @@ export default function Dashboard() {
           </article>
         ))}
       </section>
+
+      <ExportReports />
 
       <section className="grid gap-4 sm:grid-cols-2">
         <Link href="/produtos" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-400 hover:shadow-md">
