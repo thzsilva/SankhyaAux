@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently -n api,web -k \"PORT=3002 npm run dev --workspace @workspace/api-server\" \"PORT=5000 BASE_PATH=/ npm run dev --workspace @workspace/sankhya-suporte\"",
+    "dev": "concurrently -n api,web -k \"cross-env PORT=3002 npm run dev --workspace @workspace/api-server\" \"cross-env PORT=5000 BASE_PATH=/ npm run dev --workspace @workspace/sankhya-suporte\"",
     "build": "npm run typecheck && npm run workspaces:build",
     "typecheck:libs": "tsc --build",
     "typecheck": "npm run typecheck:libs && npm run workspaces:typecheck",
@@ -19,7 +19,8 @@
   ],
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "cross-env": "^10.1.0",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.2"
   }
 }
