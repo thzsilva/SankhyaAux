@@ -60,16 +60,26 @@ function isUrl(input: RequestInfo | URL): input is URL {
   return typeof URL !== "undefined" && input instanceof URL;
 }
 
-function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
-  if (!_baseUrl) return input;
-  const url = resolveUrl(input);
-  // Only prepend to relative paths (starting with /)
-  if (!url.startsWith("/")) return input;
+function rewritePath(url: string): string {
+  // Replit's edge proxy reserves /api/* paths for its own infrastructure
+  // (they never reach the dev server), so the generated client's /api/...
+  // URLs are rewritten to /backend/... — the API server is mounted under
+  // both prefixes.
+  if (url.startsWith("/api/") || url === "/api") {
+    return "/backend" + url.slice(4);
+  }
+  return url;
+}
 
-  const absolute = `${_baseUrl}${url}`;
-  if (typeof input === "string") return absolute;
-  if (isUrl(input)) return new URL(absolute);
-  return new Request(absolute, input as Request);
+function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
+  const originalUrl = resolveUrl(input);
+  const rewritten = originalUrl.startsWith("/") ? rewritePath(originalUrl) : originalUrl;
+  const finalUrl = _baseUrl && rewritten.startsWith("/") ? `${_baseUrl}${rewritten}` : rewritten;
+
+  if (finalUrl === originalUrl) return input;
+  if (typeof input === "string") return finalUrl;
+  if (isUrl(input)) return new URL(finalUrl);
+  return new Request(finalUrl, input as Request);
 }
 
 function resolveUrl(input: RequestInfo | URL): string {

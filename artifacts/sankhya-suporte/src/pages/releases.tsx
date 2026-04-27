@@ -38,7 +38,7 @@ const STATUS_LABEL: Record<StatusFilter, string> = {
 
 function apiUrl(path: string): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${base}/api${path}`;
+  return `${base}/backend${path}`;
 }
 
 function fmtDate(value: string | null | undefined): string {

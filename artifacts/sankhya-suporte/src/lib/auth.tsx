@@ -45,8 +45,10 @@ const TOKEN_KEY = "sankhya.auth.token";
 const USER_KEY = "sankhya.auth.user";
 
 function apiUrl(path: string): string {
+  // Use /backend instead of /api because Replit's edge proxy reserves /api/*
+  // paths for its own infrastructure (they never reach the dev server).
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-  return `${base}/api${path}`;
+  return `${base}/backend${path}`;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

@@ -54,6 +54,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Mount under both prefixes:
+// - /backend is used by the frontend because Replit's edge proxy reserves /api/* paths
+//   for its own infra and never forwards them to the dev server.
+// - /api is kept for backwards-compatibility (direct localhost access, generated OpenAPI
+//   client, etc).
+app.use("/backend", router);
 app.use("/api", router);
 
 // Serve frontend static files in production

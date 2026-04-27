@@ -33,6 +33,12 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     proxy: {
+      // Replit's edge proxy reserves /api/* paths for its own infra,
+      // so the frontend hits /backend/* and we forward those to the API server.
+      "/backend": {
+        target: "http://127.0.0.1:3002",
+        changeOrigin: true,
+      },
       "/api": {
         target: "http://127.0.0.1:3002",
         changeOrigin: true,

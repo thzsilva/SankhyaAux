@@ -11,7 +11,15 @@ Monorepo (npm workspaces) with a React + Vite frontend and an Express + Supabase
 - Workflow `Start application` runs `npm run dev`, which uses `concurrently` to launch:
   - API server on port `3002` (localhost)
   - Vite frontend on port `5000` (host `0.0.0.0`, `allowedHosts: true`)
-- Vite proxies `/api` to `http://127.0.0.1:3002`.
+- Vite proxies both `/backend` and `/api` to `http://127.0.0.1:3002`.
+
+### Important: `/api/*` is reserved by Replit's edge proxy
+Replit's public edge proxy (the `*.replit.dev` domain in dev, and any custom domain in prod) intercepts paths starting with `/api*` for its own infrastructure and returns 502/404 — those requests never reach the dev server. Because of that, the frontend calls the backend under `/backend/*` instead:
+- `artifacts/api-server/src/app.ts` mounts the router under both `/backend` and `/api` (the latter still works for direct localhost access and tests).
+- `artifacts/sankhya-suporte/src/lib/auth.tsx` and `artifacts/sankhya-suporte/src/pages/releases.tsx` build URLs with `/backend`.
+- `lib/api-client-react/src/custom-fetch.ts` rewrites `/api/...` → `/backend/...` so the generated OpenAPI client (which hardcodes `/api/...`) keeps working without regeneration.
+
+If we ever regenerate the client and want to drop the rewrite, set `servers: [{ url: /backend }]` in `lib/api-spec/openapi.yaml` and regen.
 - Environment variables live in `.env` (Supabase URL/keys, JWT secret).
 
 ## Notes from import
