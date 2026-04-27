@@ -4,6 +4,7 @@ import dashboardRouter from "./dashboard";
 import clientsRouter from "./clients";
 import productsRouter from "./products";
 import authRouter from "./auth";
+import releasesRouter from "./releases";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(authRouter);
 router.use(dashboardRouter);
 router.use(clientsRouter);
 router.use(productsRouter);
+router.use(releasesRouter);
 
 export default router;

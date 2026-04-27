@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { House, FileText, PackageSearch, Users, LogOut } from "lucide-react";
+import { House, FileText, PackageSearch, Users, LogOut, ShieldCheck } from "lucide-react";
 import { Toaster } from "sonner";
 import { type ReactNode } from "react";
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from "wouter";
@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
 import Products from "@/pages/products";
 import Reports from "@/pages/reports";
+import Releases from "@/pages/releases";
 import Login from "@/pages/login";
 import { AuthProvider, ROLE_BADGE, ROLE_LABEL, useAuth } from "@/lib/auth";
 
@@ -18,6 +19,7 @@ const tabs = [
   { href: "/relatorios", label: "Relatorios", icon: FileText },
   { href: "/produtos", label: "Produtos", icon: PackageSearch },
   { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/liberacoes", label: "Liberacoes", icon: ShieldCheck },
 ];
 
 const titleByPath: Record<string, string> = {
@@ -25,6 +27,7 @@ const titleByPath: Record<string, string> = {
   "/relatorios": "Relatorios",
   "/produtos": "Produtos",
   "/clientes": "Clientes",
+  "/liberacoes": "Liberacoes",
 };
 
 function formatDate() {
@@ -129,6 +132,11 @@ function AuthedRoutes() {
       <Route path="/clientes">
         <AppShell>
           <Clients />
+        </AppShell>
+      </Route>
+      <Route path="/liberacoes">
+        <AppShell>
+          <Releases />
         </AppShell>
       </Route>
       <Route>
