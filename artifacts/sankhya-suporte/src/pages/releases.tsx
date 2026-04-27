@@ -97,7 +97,6 @@ export default function Releases() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [selected, setSelected] = useState<ReleaseRow | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [vlrLiberadoInput, setVlrLiberadoInput] = useState("");
   const [obslibInput, setObslibInput] = useState("");
 
   const canRelease = user?.role === "robot" || user?.role === "human" || user?.role === "SA";
@@ -157,24 +156,16 @@ export default function Releases() {
 
   function openRelease(row: ReleaseRow) {
     setSelected(row);
-    const fallback = Number(row.vlratual ?? row.vlrliberado ?? 0);
-    setVlrLiberadoInput(Number.isFinite(fallback) ? String(fallback) : "");
     setObslibInput("");
   }
 
   function closeRelease() {
     setSelected(null);
-    setVlrLiberadoInput("");
     setObslibInput("");
   }
 
   async function submitRelease() {
     if (!selected || !token) return;
-    const vlr = Number(vlrLiberadoInput);
-    if (!Number.isFinite(vlr) || vlr <= 0) {
-      toast.error("Informe um valor liberado valido.");
-      return;
-    }
     setSubmitting(true);
     try {
       const res = await fetch(
@@ -185,7 +176,7 @@ export default function Releases() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ vlrliberado: vlr, obslib: obslibInput }),
+          body: JSON.stringify({ obslib: obslibInput }),
         },
       );
       if (!res.ok) {
@@ -410,17 +401,15 @@ export default function Releases() {
               </div>
             </div>
 
-            <label className="mb-3 block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Valor liberado</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={vlrLiberadoInput}
-                onChange={(event) => setVlrLiberadoInput(event.target.value)}
-                className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none ring-emerald-500 focus:ring-2"
-              />
-            </label>
+            <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+              <p className="text-xs text-slate-500">Valor a ser liberado</p>
+              <p className="text-base font-semibold text-slate-800">
+                {fmtMoney(selected.vlratual)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Sempre igual ao valor solicitado, sem alteracao.
+              </p>
+            </div>
 
             <label className="mb-4 block text-sm">
               <span className="mb-1 block font-medium text-slate-700">Observacao da liberacao</span>

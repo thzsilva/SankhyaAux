@@ -58,11 +58,10 @@ router.post(
       typeof obslibRaw === "string" && obslibRaw.trim() !== ""
         ? obslibRaw.trim().slice(0, 255)
         : null;
-    const vlrLiberadoRaw = Number(req.body?.vlrliberado);
 
     const { data: existing, error: existingErr } = await supabase
       .from(TABLE)
-      .select("nuchave, sequencia, vlratual, vlrliberado, dhlib")
+      .select("nuchave, sequencia, vlratual, dhlib")
       .eq("nuchave", nuchave)
       .eq("sequencia", sequencia)
       .maybeSingle();
@@ -81,11 +80,9 @@ router.post(
       return;
     }
 
-    const fallback = Number(existing.vlratual ?? existing.vlrliberado ?? 0);
-    const vlrLiberado =
-      Number.isFinite(vlrLiberadoRaw) && vlrLiberadoRaw > 0
-        ? vlrLiberadoRaw
-        : fallback;
+    // Always release exactly the requested value (vlratual). Any value supplied
+    // by the client is intentionally ignored to prevent over/under-releasing.
+    const vlrLiberado = Number(existing.vlratual ?? 0);
 
     const userIdRaw = req.user?.id ?? 0;
     // codusulib is smallint (max 32767)
