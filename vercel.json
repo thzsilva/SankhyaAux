@@ -1,13 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install",
-  "buildCommand": "npm run build --workspace @workspace/sankhya-suporte",
+  "buildCommand": "npm run build --workspace @workspace/api-server && npm run build --workspace @workspace/sankhya-suporte",
   "outputDirectory": "artifacts/sankhya-suporte/dist/public",
   "framework": null,
   "functions": {
-    "api/index.ts": {
+    "api/index.mjs": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "artifacts/api-server/dist/**"
     }
   },
   "rewrites": [
