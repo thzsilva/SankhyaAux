@@ -34,3 +34,14 @@ Configured as `autoscale`:
 - Run: `NODE_ENV=production PORT=5000 node --enable-source-maps artifacts/api-server/dist/index.mjs`
 
 The single Express process serves both the API and the built frontend on port 5000.
+
+## Vercel deployment
+The repo is also ready to deploy on Vercel:
+- `vercel.json` (root) — sets the build command to build only the frontend (`npm run build --workspace @workspace/sankhya-suporte`), points the static output at `artifacts/sankhya-suporte/dist/public`, and rewrites both `/api/*` and `/backend/*` to the single serverless function `/api/index`.
+- `api/index.ts` (root) — Vercel discovers any file under `/api` as a serverless function. This file just re-exports the existing Express app from `artifacts/api-server/src/app.ts` (Express apps are themselves `(req, res)` handlers, so no adapter is needed).
+- Required env vars on Vercel: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_ANON_KEY`), `JWT_SECRET`. Set them under Project Settings → Environment Variables for Production/Preview/Development.
+
+Caveats:
+- Vercel functions are stateless and short-lived (max 30s with the configured `maxDuration`). Any future cron / sync job that needs to run continuously cannot live on Vercel — use a separate worker/service.
+- `seedUsersIfEmpty` only runs in the long-lived Express server (`index.ts → app.listen`). On Vercel it is not invoked, which is fine because seeding already happened in the source DB.
+- `lib/api-server/src/lib/log-activity.ts` is a no-op stub — see "Notes from import".
