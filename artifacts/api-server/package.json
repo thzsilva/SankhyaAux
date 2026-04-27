@@ -12,7 +12,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.39.3",
     "@workspace/api-zod": "file:../../lib/api-zod",
-    "@workspace/db": "file:../../lib/db",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2",

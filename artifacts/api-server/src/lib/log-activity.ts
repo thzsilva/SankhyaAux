@@ -1,15 +1,8 @@
-import { db, activityLogTable } from "@workspace/db";
-
 export async function logActivity(
-  action: string,
-  entity: string,
-  description: string,
-  user?: string,
+  _action: string,
+  _entity: string,
+  _description: string,
+  _user?: string,
 ): Promise<void> {
-  await db.insert(activityLogTable).values({
-    action,
-    entity,
-    description,
-    user: user ?? "Sistema",
-  });
+  return;
 }

@@ -1,5 +1,8 @@
 import "./lib/env";
-import express, { type Express } from "express";
+import path from "node:path";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { createClient } from "@supabase/supabase-js";
@@ -52,5 +55,29 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// Serve frontend static files in production
+if (process.env.NODE_ENV === "production") {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.resolve(here, "public"),
+    path.resolve(here, "..", "..", "sankhya-suporte", "dist", "public"),
+  ];
+  const staticDir = candidates.find((p) => existsSync(p));
+  if (staticDir) {
+    logger.info({ staticDir }, "serving frontend static files");
+    app.use(express.static(staticDir));
+    app.get(/^(?!\/api\/).*/, (_req: Request, res: Response, next: NextFunction) => {
+      const indexPath = path.join(staticDir, "index.html");
+      if (existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        next();
+      }
+    });
+  } else {
+    logger.warn({ candidates }, "frontend static directory not found");
+  }
+}
 
 export default app;
