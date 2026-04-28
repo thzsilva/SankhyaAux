@@ -84,7 +84,11 @@ function formatRelativeTime(iso: string): string {
 
 export default function Dashboard() {
   const { data: summary, isLoading } = useGetDashboardSummary();
-  const { data: activity } = useGetRecentActivity();
+  const { data: activityRaw } = useGetRecentActivity();
+  // Defensive: the endpoint may be missing or return a non-array (e.g. an
+  // HTML error page parsed as text). Always coerce to an array so the page
+  // doesn't crash.
+  const activity = Array.isArray(activityRaw) ? activityRaw : [];
 
   return (
     <div className="space-y-5">
@@ -136,7 +140,7 @@ export default function Dashboard() {
           Atividade recente
         </p>
         <div className="mt-2 space-y-2">
-          {(activity ?? []).slice(0, 5).map((item) => {
+          {activity.slice(0, 5).map((item) => {
             const status = statusStyles[classifyActivity(item.action)];
             return (
               <article
@@ -158,7 +162,7 @@ export default function Dashboard() {
               </article>
             );
           })}
-          {(!activity || activity.length === 0) && (
+          {activity.length === 0 && (
             <p className="rounded-2xl bg-white p-4 text-center text-sm text-slate-500 ring-1 ring-slate-200 shadow-sm">
               Sem atividades recentes.
             </p>

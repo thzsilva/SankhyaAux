@@ -5,6 +5,13 @@ import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
+// Activity log is not yet implemented in the data layer (see lib/log-activity.ts
+// which is a no-op stub). The frontend dashboard expects an array — return one
+// to keep things tidy until the feature is built.
+router.get("/activity/recent", (_req, res) => {
+  res.json([]);
+});
+
 router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   const [clientResult, productResult] = await Promise.all([
     supabase.from("tgfpar").select("codparc, dtcad, ativo"),
