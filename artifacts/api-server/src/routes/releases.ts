@@ -7,11 +7,76 @@ const router: IRouter = Router();
 
 const TABLE = "tsilib";
 
+// Carrega o mapa codusu -> nome a partir da tabela opcional `sankhya_users`.
+// Se a tabela nao existir (migration nao foi rodada), retorna mapa vazio
+// silenciosamente para nao quebrar o fluxo.
+async function loadSankhyaUserNames(
+  codusus: number[],
+): Promise<Map<number, string>> {
+  const result = new Map<number, string>();
+  const unique = Array.from(new Set(codusus.filter((c) => Number.isFinite(c))));
+  if (unique.length === 0) return result;
+  const { data, error } = await supabase
+    .from("sankhya_users")
+    .select("codusu,nome")
+    .in("codusu", unique);
+  if (error) {
+    // PGRST205 = tabela nao encontrada (migration nao rodada). Tudo bem.
+    if (error.code !== "PGRST205") {
+      logger.warn({ err: error }, "Falha ao carregar nomes em sankhya_users");
+    }
+    return result;
+  }
+  for (const row of data ?? []) {
+    const codusu = Number((row as any).codusu);
+    const nome = String((row as any).nome ?? "").trim();
+    if (Number.isFinite(codusu)) result.set(codusu, nome);
+  }
+  return result;
+}
+
+// Lista de usuarios solicitantes distintos (com nome quando disponivel).
+router.get(
+  "/releases/solicitantes",
+  requireAuth,
+  async (_req: AuthedRequest, res: Response): Promise<void> => {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select("codususolicit")
+      .not("codususolicit", "is", null)
+      .limit(2000);
+    if (error) {
+      logger.error({ err: error }, "Falha ao listar solicitantes");
+      res.status(500).json({ error: "Erro ao listar solicitantes" });
+      return;
+    }
+    const codigos = Array.from(
+      new Set(
+        (data ?? [])
+          .map((r: any) => Number(r.codususolicit))
+          .filter((n) => Number.isFinite(n)),
+      ),
+    ).sort((a, b) => a - b);
+    const names = await loadSankhyaUserNames(codigos);
+    res.json(
+      codigos.map((codusu) => ({
+        codusu,
+        nome: names.get(codusu) ?? "",
+      })),
+    );
+  },
+);
+
 router.get(
   "/releases",
   requireAuth,
   async (req: AuthedRequest, res: Response): Promise<void> => {
     const status = String(req.query.status ?? "all").toLowerCase();
+    const codusuFilterRaw = req.query.codususolicit;
+    const codusuFilter =
+      codusuFilterRaw != null && codusuFilterRaw !== ""
+        ? Number(codusuFilterRaw)
+        : null;
 
     let query = supabase
       .from(TABLE)
@@ -24,6 +89,9 @@ router.get(
     } else if (status === "released") {
       query = query.not("dhlib", "is", null);
     }
+    if (codusuFilter != null && Number.isFinite(codusuFilter)) {
+      query = query.eq("codususolicit", codusuFilter);
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -32,7 +100,20 @@ router.get(
       return;
     }
 
-    res.json(data ?? []);
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const codusus = rows
+      .map((r) => Number(r.codususolicit))
+      .filter((n) => Number.isFinite(n));
+    const names = await loadSankhyaUserNames(codusus);
+    const enriched = rows.map((r) => {
+      const c = Number(r.codususolicit);
+      return {
+        ...r,
+        solicitante_nome: Number.isFinite(c) ? names.get(c) ?? "" : "",
+      };
+    });
+
+    res.json(enriched);
   },
 );
 
@@ -64,6 +145,8 @@ router.get(
       return;
     }
 
+    // VGFLIBEVE foi criada com nome em UPPERCASE (entre aspas) no Supabase,
+    // entao o nome da tabela e suas colunas precisam vir em UPPERCASE.
     let event: { evento: number; descricao: string } | null = null;
     if (release.evento != null) {
       const { data: evt, error: evtErr } = await supabase
@@ -84,36 +167,75 @@ router.get(
     let note: Record<string, unknown> | null = null;
     let items: Record<string, unknown>[] = [];
 
+    // Tabelas tgfcab/tgfite no Supabase estao em LOWERCASE (sem aspas).
+    // Identificadores precisam casar exatamente, entao usamos lowercase aqui.
     const tabela = String(release.tabela ?? "").trim().toUpperCase();
     if (tabela === "TGFCAB") {
       const { data: cab, error: cabErr } = await supabase
-        .from("TGFCAB")
+        .from("tgfcab")
         .select(
-          "NUNOTA,CODPARC,CODVEND,CODEMP,DTNEG,DTFATUR,DTENTSAI,VLRNOTA,OBSERVACAO,STATUSNOTA,APROVADO,TIPMOV,CODTIPOPER",
+          "nunota,codparc,codvend,codemp,codusu,codusuinc,dtneg,dtfatur,dtentsai,vlrnota,observacao,statusnota,aprovado,tipmov,codtipoper",
         )
-        .eq("NUNOTA", release.nuchave)
+        .eq("nunota", release.nuchave)
         .maybeSingle();
       if (cabErr) {
-        logger.warn({ err: cabErr }, "Failed to load TGFCAB header");
+        logger.warn({ err: cabErr }, "Failed to load tgfcab header");
       } else if (cab) {
         note = cab as Record<string, unknown>;
       }
 
       const { data: ite, error: iteErr } = await supabase
-        .from("TGFITE")
+        .from("tgfite")
         .select(
-          "NUNOTA,SEQUENCIA,CODPROD,CODVOL,QTDNEG,VLRUNIT,VLRTOT,VLRDESC,PERCDESC,OBSERVACAO",
+          "nunota,sequencia,codprod,codvol,qtdneg,vlrunit,vlrtot,vlrdesc,percdesc,observacao",
         )
-        .eq("NUNOTA", release.nuchave)
-        .order("SEQUENCIA", { ascending: true });
+        .eq("nunota", release.nuchave)
+        .order("sequencia", { ascending: true });
       if (iteErr) {
-        logger.warn({ err: iteErr }, "Failed to load TGFITE items");
+        logger.warn({ err: iteErr }, "Failed to load tgfite items");
       } else if (Array.isArray(ite)) {
         items = ite as Record<string, unknown>[];
       }
     }
 
-    res.json({ release, event, note, items });
+    // Resolve nomes para codususolicit (tsilib) e codusu/codusuinc (tgfcab).
+    const codusus: number[] = [];
+    if (release.codususolicit != null) codusus.push(Number(release.codususolicit));
+    if (release.codusulib != null) codusus.push(Number(release.codusulib));
+    if (note?.codusu != null) codusus.push(Number(note.codusu));
+    if (note?.codusuinc != null) codusus.push(Number(note.codusuinc));
+    const names = await loadSankhyaUserNames(codusus);
+    const nameOf = (v: unknown): string => {
+      const n = Number(v);
+      return Number.isFinite(n) ? names.get(n) ?? "" : "";
+    };
+
+    const usuarios = {
+      solicitante: {
+        codusu: release.codususolicit ?? null,
+        nome: nameOf(release.codususolicit),
+      },
+      liberador: {
+        codusu: release.codusulib ?? null,
+        nome: nameOf(release.codusulib),
+      },
+      nota_responsavel:
+        note != null
+          ? {
+              codusu: note.codusu ?? null,
+              nome: nameOf(note.codusu),
+            }
+          : null,
+      nota_inclusor:
+        note != null
+          ? {
+              codusu: note.codusuinc ?? null,
+              nome: nameOf(note.codusuinc),
+            }
+          : null,
+    };
+
+    res.json({ release, event, note, items, usuarios });
   },
 );
 

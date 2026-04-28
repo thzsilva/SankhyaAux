@@ -22,6 +22,14 @@ Replit's public edge proxy (the `*.replit.dev` domain in dev, and any custom dom
 If we ever regenerate the client and want to drop the rewrite, set `servers: [{ url: /backend }]` in `lib/api-spec/openapi.yaml` and regen.
 - Environment variables live in `.env` (Supabase URL/keys, JWT secret).
 
+## Migrations
+
+`migrations/001_sankhya_users.sql` cria a tabela opcional `public.sankhya_users` (codusu PK, nome) usada para mostrar o nome do usuario solicitante/liberador ao lado do `codusu` da Sankhya. Roda uma vez no SQL Editor do Supabase. O backend funciona normalmente sem ela (so nao mostra os nomes).
+
+## Identificadores no Supabase (case-sensitive)
+
+As tabelas do dump da Sankhya foram criadas no Supabase em **lowercase**: `tgfcab`, `tgfite`, `tsilib`. As colunas tambem sao todas lowercase. A unica excecao e `VGFLIBEVE` (e suas colunas `EVENTO`, `DESCRICAO`), que foi criada em UPPERCASE entre aspas. Em chamadas via supabase-js (que serializa tudo para PostgREST), os identificadores precisam casar exatamente — nao confundir com a convencao do Oracle Sankhya original que usa UPPERCASE. O codigo em `artifacts/api-server/src/routes/releases.ts` segue essa regra: tudo lowercase, exceto `VGFLIBEVE`.
+
 ## Notes from import
 - The api-server originally referenced a `@workspace/db` package that is not present in `lib/`.
   - Removed the dependency from `artifacts/api-server/package.json`.
