@@ -36,6 +36,87 @@ router.get(
   },
 );
 
+router.get(
+  "/releases/:nuchave/:sequencia/details",
+  requireAuth,
+  async (req: AuthedRequest, res: Response): Promise<void> => {
+    const nuchave = Number(req.params.nuchave);
+    const sequencia = Number(req.params.sequencia);
+    if (!Number.isFinite(nuchave) || !Number.isFinite(sequencia)) {
+      res.status(400).json({ error: "Chave invalida" });
+      return;
+    }
+
+    const { data: release, error: relErr } = await supabase
+      .from(TABLE)
+      .select("*")
+      .eq("nuchave", nuchave)
+      .eq("sequencia", sequencia)
+      .maybeSingle();
+
+    if (relErr) {
+      logger.error({ err: relErr }, "Failed to load tsilib row for details");
+      res.status(500).json({ error: "Erro ao carregar liberacao" });
+      return;
+    }
+    if (!release) {
+      res.status(404).json({ error: "Liberacao nao encontrada" });
+      return;
+    }
+
+    let event: { evento: number; descricao: string } | null = null;
+    if (release.evento != null) {
+      const { data: evt, error: evtErr } = await supabase
+        .from("VGFLIBEVE")
+        .select("EVENTO,DESCRICAO")
+        .eq("EVENTO", release.evento)
+        .maybeSingle();
+      if (evtErr) {
+        logger.warn({ err: evtErr }, "Failed to load VGFLIBEVE event");
+      } else if (evt) {
+        event = {
+          evento: Number((evt as any).EVENTO),
+          descricao: String((evt as any).DESCRICAO ?? ""),
+        };
+      }
+    }
+
+    let note: Record<string, unknown> | null = null;
+    let items: Record<string, unknown>[] = [];
+
+    const tabela = String(release.tabela ?? "").trim().toUpperCase();
+    if (tabela === "TGFCAB") {
+      const { data: cab, error: cabErr } = await supabase
+        .from("TGFCAB")
+        .select(
+          "NUNOTA,CODPARC,CODVEND,CODEMP,DTNEG,DTFATUR,DTENTSAI,VLRNOTA,OBSERVACAO,STATUSNOTA,APROVADO,TIPMOV,CODTIPOPER",
+        )
+        .eq("NUNOTA", release.nuchave)
+        .maybeSingle();
+      if (cabErr) {
+        logger.warn({ err: cabErr }, "Failed to load TGFCAB header");
+      } else if (cab) {
+        note = cab as Record<string, unknown>;
+      }
+
+      const { data: ite, error: iteErr } = await supabase
+        .from("TGFITE")
+        .select(
+          "NUNOTA,SEQUENCIA,CODPROD,CODVOL,QTDNEG,VLRUNIT,VLRTOT,VLRDESC,PERCDESC,OBSERVACAO",
+        )
+        .eq("NUNOTA", release.nuchave)
+        .order("SEQUENCIA", { ascending: true });
+      if (iteErr) {
+        logger.warn({ err: iteErr }, "Failed to load TGFITE items");
+      } else if (Array.isArray(ite)) {
+        items = ite as Record<string, unknown>[];
+      }
+    }
+
+    res.json({ release, event, note, items });
+  },
+);
+
 router.post(
   "/releases/:nuchave/:sequencia/release",
   requireAuth,
@@ -54,10 +135,15 @@ router.post(
     }
 
     const obslibRaw = req.body?.obslib;
-    const obslib =
-      typeof obslibRaw === "string" && obslibRaw.trim() !== ""
-        ? obslibRaw.trim().slice(0, 255)
-        : null;
+    const obslibTrimmed =
+      typeof obslibRaw === "string" ? obslibRaw.trim() : "";
+    if (obslibTrimmed === "") {
+      res
+        .status(400)
+        .json({ error: "Observacao da liberacao e obrigatoria." });
+      return;
+    }
+    const obslib = obslibTrimmed.slice(0, 255);
 
     const { data: existing, error: existingErr } = await supabase
       .from(TABLE)
@@ -92,8 +178,8 @@ router.post(
       dhlib: new Date().toISOString(),
       codusulib,
       vlrliberado: vlrLiberado,
+      obslib,
     };
-    if (obslib !== null) update.obslib = obslib;
 
     const { data: updated, error: updateError } = await supabase
       .from(TABLE)

@@ -267,16 +267,66 @@ usa o **SDK `@supabase/supabase-js`** (não Drizzle nem Prisma) com a chave
 
 ### Tabelas usadas (e quem usa cada uma)
 
-| Tabela     | Origem         | Usada por (rota → tela)                                              |
-|------------|----------------|----------------------------------------------------------------------|
-| `app_users`| App (criada por nós) | `auth.ts` → `/login` (autenticação, papéis)                  |
-| `tgfpar`   | Sankhya (parceiros)  | `clients.ts` → `/clientes`, `dashboard.ts` (contagem)        |
-| `tgfpro`   | Sankhya (produtos)   | `products.ts` → `/produtos`, `dashboard.ts` (contagem)       |
-| `tsilib`   | Sankhya (liberações) | `releases.ts` → `/liberacoes` (listar + ação "liberar")      |
+| Tabela      | Origem               | Usada por (rota → tela)                                              |
+|-------------|----------------------|----------------------------------------------------------------------|
+| `app_users` | App (criada por nós) | `auth.ts` → `/login` (autenticação, papéis)                          |
+| `tgfpar`    | Sankhya (parceiros)  | `clients.ts` → `/clientes`, `dashboard.ts` (contagem)                |
+| `tgfpro`    | Sankhya (produtos)   | `products.ts` → `/produtos`, `dashboard.ts` (contagem)               |
+| `tsilib`    | Sankhya (liberações) | `releases.ts` → `/liberacoes` (listar + ação "liberar")              |
+| `TGFCAB`    | Sankhya (cabeçalho de nota) | `releases.ts` → modal de detalhes da liberação                |
+| `TGFITE`    | Sankhya (itens da nota)     | `releases.ts` → modal de detalhes da liberação                |
+| `VGFLIBEVE` | Sankhya (eventos de liberação) | `releases.ts` → traduz `evento` numérico em texto legível  |
 
 A tabela `app_users` é **a única que o app mantém** — todas as outras são
 espelhos da Sankhya, alimentadas por algum job de sincronização externo
 (que não vive neste repositório).
+
+> ⚠️ **Atenção a maiúsculas:** as 3 tabelas novas foram criadas com nome
+> entre aspas (`"TGFCAB"`, `"TGFITE"`, `"VGFLIBEVE"`), então no Postgres elas
+> ficam **com letras maiúsculas literais**. Por isso as queries usam
+> `supabase.from("TGFCAB")` (e nomes de coluna como `"NUNOTA"`, `"CODPARC"`)
+> em vez do padrão minúsculo das outras tabelas (`tgfpar`, `tgfpro`, `tsilib`).
+> Se você criar uma 4ª tabela, sugiro padronizar tudo em minúsculo pra
+> simplificar.
+
+### Como as tabelas se ligam (modelo de relacionamento)
+
+```
+                             ┌─────────────────┐
+                             │   app_users     │  (autenticação interna)
+                             └─────────────────┘
+
+  ┌────────────┐                       ┌─────────────┐         ┌────────────┐
+  │   tgfpar   │◄── codparc ───────────│   tsilib    │── tabela='TGFCAB' ─┐
+  │ (parceiros)│                       │ (liberações)│   nuchave = NUNOTA │
+  └────────────┘                       │             │                    ▼
+                                       │   evento ───┼──► VGFLIBEVE   ┌─────────┐
+                                       │             │   .EVENTO      │ TGFCAB  │
+                                       │             │   .DESCRICAO   │ (nota)  │
+                                       └─────────────┘                └────┬────┘
+                                                                           │ NUNOTA
+                                                                           ▼
+                                                                      ┌─────────┐
+                                                                      │ TGFITE  │
+                                                                      │ (itens) │
+                                                                      └─────────┘
+                                       ┌────────────┐
+                                       │   tgfpro   │◄── CODPROD (TGFITE)
+                                       │ (produtos) │
+                                       └────────────┘
+```
+
+Em palavras:
+- `tsilib.evento` → `VGFLIBEVE.EVENTO` (qual regra disparou: "Limite de
+  Crédito", "Desconto", "Prazo Máximo", etc).
+- `tsilib.tabela` diz qual entidade Sankhya está sendo liberada. No caso mais
+  comum (`'TGFCAB'`) → `tsilib.nuchave = TGFCAB.NUNOTA` (cabeçalho da nota).
+- `TGFITE.NUNOTA = TGFCAB.NUNOTA` → traz os itens daquela nota.
+- `TGFITE.CODPROD` → produto (`tgfpro`); `TGFCAB.CODPARC` → parceiro (`tgfpar`).
+
+O modal de "Liberar" no frontend usa esse caminho inteiro pra exibir, num
+único painel: descrição do evento (texto, não número), cabeçalho da nota
+(parceiro, datas, valor, observação) e a lista de itens.
 
 ### Como uma consulta acontece, do clique até o Postgres
 
@@ -328,7 +378,7 @@ Resumo do que cada parte faz:
 | `artifacts/api-server/src/routes/clients.ts`     | `tgfpar`   | listar todos / buscar por id                          |
 | `artifacts/api-server/src/routes/products.ts`    | `tgfpro`   | listar com filtro de busca / buscar por id            |
 | `artifacts/api-server/src/routes/dashboard.ts`   | `tgfpar`, `tgfpro`, `tsilib` | contagens + agregações pro painel  |
-| `artifacts/api-server/src/routes/releases.ts`    | `tsilib`   | listar pendentes/liberadas + ação `release` (UPDATE)  |
+| `artifacts/api-server/src/routes/releases.ts`    | `tsilib`, `TGFCAB`, `TGFITE`, `VGFLIBEVE` | listar pendentes/liberadas + endpoint de detalhes (junta as 4 tabelas) + ação `release` (UPDATE em `tsilib`) |
 
 ### Manutenção: tarefas comuns
 
