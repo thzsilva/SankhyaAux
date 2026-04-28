@@ -262,4 +262,4 @@ Configurado como deployment do tipo **VM** no Replit:
 - **Run:** sobe API + `vite preview` em paralelo
 
 Pra publicar, é só clicar em **Publish** no Replit. O `.replit` já contém a seção
-`[deployment]` com tudo pronto.
+`[deployment]` com tudo pronto...
