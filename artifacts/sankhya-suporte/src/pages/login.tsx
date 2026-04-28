@@ -26,7 +26,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Green Core</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Suporte Sankhya</p>
           <h1 className="mt-1 text-2xl font-bold text-slate-900">Painel de Consulta</h1>
           <p className="mt-1 text-sm text-slate-500">Entre com sua conta para continuar.</p>
         </div>
