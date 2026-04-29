@@ -694,7 +694,7 @@ router.post(
 
     const { data: existing, error: existingErr } = await supabase
       .from(TABLE)
-      .select("nuchave, sequencia, vlratual, dhlib")
+      .select("nuchave, sequencia, vlratual, dhlib, vlrliberado, perclimite")
       .eq("nuchave", nuchave)
       .eq("sequencia", sequencia)
       .maybeSingle();
@@ -722,6 +722,10 @@ router.post(
       codusulib,
       vlrliberado: vlrLiberado,
       obslib,
+      //snapshot do estado anterior á liberação (padrão sankhya):
+      percanterior: Number (existing.perclimite ?? 0),
+      vlranterior: Number(existing.vlrliberado ?? 0),
+
     };
 
     const { data: updated, error: updateError } = await supabase
