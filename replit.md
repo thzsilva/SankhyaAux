@@ -90,4 +90,4 @@ The repo is also ready to deploy on Vercel:
 Caveats:
 - Vercel functions are stateless and short-lived (max 30s with the configured `maxDuration`). Any future cron / sync job that needs to run continuously cannot live on Vercel — use a separate worker/service.
 - `seedUsersIfEmpty` only runs in the long-lived Express server (`index.ts → app.listen`). On Vercel it is not invoked, which is fine because seeding already happened in the source DB.
-- `lib/api-server/src/lib/log-activity.ts` is a no-op stub — see "Notes from import".
+- `lib/api-server/src/lib/log-activity.ts` is a no-op stub — see "Notes from import"..
