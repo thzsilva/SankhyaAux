@@ -24,7 +24,14 @@ If we ever regenerate the client and want to drop the rewrite, set `servers: [{ 
 
 ## Migrations
 
-`migrations/001_sankhya_users.sql` cria a tabela opcional `public.sankhya_users` (codusu PK, nome) usada para mostrar o nome do usuario solicitante/liberador ao lado do `codusu` da Sankhya. Roda uma vez no SQL Editor do Supabase. O backend funciona normalmente sem ela (so nao mostra os nomes).
+`migrations/001_sankhya_users.sql` cria a tabela opcional `public.sankhya_users` (codusu PK, nome) usada como **fallback legado** para mostrar o nome do usuario solicitante/liberador ao lado do `codusu` da Sankhya. Roda uma vez no SQL Editor do Supabase. O backend funciona normalmente sem ela (so nao mostra os nomes).
+
+`migrations/002_sankhya_lookup_tables.sql` cria as tabelas auxiliares espelhadas da Sankhya:
+- `public.tsiusu` (codusu PK, nomeusu, email) - **fonte canonica** dos nomes de usuario. O backend prefere ela e cai para `sankhya_users` quando a linha nao existir aqui.
+- `public.tgftop` (codtipoper PK, descroper, tipmov, ativo) - descricoes dos tipos de operacao (TOP) usadas em `tgfcab.codtipoper`.
+- `public.tgfnat` (codnat PK, descrnat, ativo, receitadesp) - descricoes das naturezas usadas em `tgfcab.codnat`.
+
+Tudo em lowercase, igual as outras tabelas da Sankhya ja importadas. Tambem roda uma vez no SQL Editor; depois basta preencher as colunas de descricao (ou substituir o seed por um INSERT do dump completo da Sankhya). Enquanto a tabela nao existir / estiver vazia, o `safeLoadMap` no `releases.ts` ignora silenciosamente o "join" e o front cai para o codigo numerico.
 
 ## Identificadores no Supabase (case-sensitive)
 

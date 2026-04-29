@@ -109,6 +109,10 @@ async function safeLoadMap<T>(
   return result;
 }
 
+// Carrega o nome do usuario por codigo. Tenta primeiro a tabela canonica
+// da Sankhya (tsiusu.nomeusu) e cai para o mapeamento legado
+// (sankhya_users.nome) quando a linha nao existir, mantendo retrocompat
+// com instalacoes que ainda nao rodaram o migration 002.
 async function loadSankhyaUserNames(
   codusus: number[],
 ): Promise<Map<number, string>> {
@@ -116,10 +120,35 @@ async function loadSankhyaUserNames(
   const unique = Array.from(new Set(codusus.filter((c) => Number.isFinite(c))));
   if (unique.length === 0) return result;
 
+  // 1) tsiusu (fonte canonica) ----------------------------------------
+  const { data: tsiusuRows, error: tsiusuErr } = await supabase
+    .from("tsiusu")
+    .select("codusu,nomeusu")
+    .in("codusu", unique);
+
+  if (tsiusuErr) {
+    // PGRST205 = relation not found - tabela ainda nao foi criada.
+    if (tsiusuErr.code !== "PGRST205") {
+      logger.warn({ err: tsiusuErr }, "Falha ao carregar nomes em tsiusu");
+    }
+  } else {
+    for (const row of tsiusuRows ?? []) {
+      const codusu = Number((row as Record<string, unknown>).codusu);
+      const nome = String(
+        (row as Record<string, unknown>).nomeusu ?? "",
+      ).trim();
+      if (Number.isFinite(codusu) && nome !== "") result.set(codusu, nome);
+    }
+  }
+
+  // 2) sankhya_users (fallback legado) - so resolve quem ainda falta. -
+  const missing = unique.filter((c) => !result.has(c));
+  if (missing.length === 0) return result;
+
   const { data, error } = await supabase
     .from("sankhya_users")
     .select("codusu,nome")
-    .in("codusu", unique);
+    .in("codusu", missing);
 
   if (error) {
     if (error.code !== "PGRST205") {
@@ -131,7 +160,7 @@ async function loadSankhyaUserNames(
   for (const row of data ?? []) {
     const codusu = Number((row as Record<string, unknown>).codusu);
     const nome = String((row as Record<string, unknown>).nome ?? "").trim();
-    if (Number.isFinite(codusu)) result.set(codusu, nome);
+    if (Number.isFinite(codusu) && nome !== "") result.set(codusu, nome);
   }
   return result;
 }
