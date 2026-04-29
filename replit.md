@@ -24,14 +24,45 @@ If we ever regenerate the client and want to drop the rewrite, set `servers: [{ 
 
 ## Migrations
 
-`migrations/001_sankhya_users.sql` cria a tabela opcional `public.sankhya_users` (codusu PK, nome) usada como **fallback legado** para mostrar o nome do usuario solicitante/liberador ao lado do `codusu` da Sankhya. Roda uma vez no SQL Editor do Supabase. O backend funciona normalmente sem ela (so nao mostra os nomes).
+Os arquivos em `migrations/` sao SQL para rodar **uma unica vez** no SQL Editor do Supabase (cole o conteudo inteiro e execute). Eles nao rodam automaticamente — o app nao tem orquestrador de migration.
 
-`migrations/002_sankhya_lookup_tables.sql` cria as tabelas auxiliares espelhadas da Sankhya:
-- `public.tsiusu` (codusu PK, nomeusu, email) - **fonte canonica** dos nomes de usuario. O backend prefere ela e cai para `sankhya_users` quando a linha nao existir aqui.
-- `public.tgftop` (codtipoper PK, descroper, tipmov, ativo) - descricoes dos tipos de operacao (TOP) usadas em `tgfcab.codtipoper`.
-- `public.tgfnat` (codnat PK, descrnat, ativo, receitadesp) - descricoes das naturezas usadas em `tgfcab.codnat`.
+- `migrations/001_sankhya_users.sql` — **descontinuado.** Criava `public.sankhya_users` como mapeamento manual de `codusu -> nome` antes de termos a `tsiusu` espelhada. O backend nao le mais essa tabela; pode ser ignorado em instalacoes novas, e em instalacoes antigas voce pode dropar `public.sankhya_users` quando quiser (`drop table public.sankhya_users;`).
+- `migrations/002_sankhya_lookup_tables.sql` — cria as tabelas auxiliares espelhadas da Sankhya, todas com PK e identificadores em lowercase (mesmo padrao de `tgfcab`, `tgfite`, `tsilib`):
+  - `public.tsiusu` (codusu PK, nomeusu, email) — **fonte unica** dos nomes de usuario (solicitante, liberador, responsavel/inclusor da nota).
+  - `public.tgftop` (codtipoper PK, descroper, tipmov, ativo) — descricao do tipo de operacao (TOP) usada em `tgfcab.codtipoper`.
+  - `public.tgfnat` (codnat PK, descrnat, ativo, receitadesp) — descricao da natureza usada em `tgfcab.codnat`.
 
-Tudo em lowercase, igual as outras tabelas da Sankhya ja importadas. Tambem roda uma vez no SQL Editor; depois basta preencher as colunas de descricao (ou substituir o seed por um INSERT do dump completo da Sankhya). Enquanto a tabela nao existir / estiver vazia, o `safeLoadMap` no `releases.ts` ignora silenciosamente o "join" e o front cai para o codigo numerico.
+  Depois de rodar o SQL, popule as colunas de descricao via Table Editor ou via `INSERT … ON CONFLICT (pk) DO UPDATE` com o dump completo da Sankhya. Codigos novos que aparecerem em liberacoes futuras precisam ser inseridos manualmente nessas tabelas (idealmente com um sync periodico do ERP).
+
+## Como o enriquecimento das liberacoes funciona
+
+A tela de detalhes da liberacao (`GET /api/releases/:nuchave/:sequencia/details`) e montada em `artifacts/api-server/src/routes/releases.ts`. Para cada liberacao ela carrega em paralelo (via `safeLoadMap`) as tabelas auxiliares e devolve um objeto enriquecido para o front:
+
+| Campo no front | Tabela Supabase | Coluna PK | Coluna mostrada |
+|---|---|---|---|
+| `usuarios.solicitante.nome`, `usuarios.liberador.nome`, `usuarios.nota_responsavel.nome`, `usuarios.nota_inclusor.nome` | `tsiusu` | `codusu` | `nomeusu` |
+| `note.parceiro.nomeparc` | `tgfpar` | `codparc` | `nomeparc`, `razaosocial`, `cgc_cpf` |
+| `note.vendedor.apelido` | `tgfven` | `codvend` | `apelido` |
+| `note.empresa.nomefant` | `tgfemp` | `codemp` | `nomefant`, `razaosocial` |
+| `note.operacao.descroper` | `tgftop` | `codtipoper` | `descroper` |
+| `note.natureza.descrnat` | `tgfnat` | `codnat` | `descrnat` |
+| `items[].produto.descrprod` | `tgfpro` | `codprod` | `descrprod`, `referencia` |
+| `items[].tributacao.descrtrib` | `tgftrb` | `codtrib` | `descrtrib`, `cst`, `csosn` |
+| `event.descricao` (cabecalho do card) | `VGFLIBEVE` (uppercase com aspas) | `EVENTO` | `DESCRICAO` |
+
+O `safeLoadMap` e tolerante: se uma dessas tabelas nao existir no Supabase (codigo de erro PostgREST `PGRST205`), o campo correspondente vem `null` e o front cai para o codigo numerico — nada quebra. Por isso e seguro adicionar tabelas auxiliares uma de cada vez.
+
+### Onde mexer quando precisar mudar coisa
+
+- **Adicionar/atualizar nome de usuario, descricao de TOP ou de natureza:** rodar `INSERT … ON CONFLICT … DO UPDATE` direto em `public.tsiusu` / `public.tgftop` / `public.tgfnat` no SQL Editor do Supabase. Nao precisa mexer em codigo.
+- **Mostrar uma coluna nova (ex.: `tgfpar.cep`) na tela de detalhes:**
+  1. Adicionar a coluna no `select` de `loadParceiros` (ou do loader equivalente) em `artifacts/api-server/src/routes/releases.ts` e no tipo `ParceiroLite` no topo do arquivo.
+  2. Renderizar o campo em `artifacts/sankhya-suporte/src/pages/releases.tsx` no card de detalhes (procure por `details.note.parceiro?.nomeparc` para ver o padrao).
+- **Espelhar uma tabela nova da Sankhya (ex.: `tgfgru`, grupos de produto):**
+  1. `CREATE TABLE public.<tabela> (…)` no SQL Editor (lowercase, com PK).
+  2. Adicionar um loader novo em `releases.ts` no padrao do `loadParceiros`/`loadNaturezas` e incluir o resultado no `Promise.all` que enriquece o `note`/`items`.
+  3. Adicionar o campo no tipo correspondente em `artifacts/sankhya-suporte/src/pages/releases.tsx` e renderizar.
+- **Trocar a tabela usada para o nome do usuario:** alterar `loadSankhyaUserNames` em `artifacts/api-server/src/routes/releases.ts`. Hoje le so de `tsiusu.nomeusu`.
 
 ## Identificadores no Supabase (case-sensitive)
 
