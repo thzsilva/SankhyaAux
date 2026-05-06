@@ -443,8 +443,13 @@ router.get(
 
     const tabela = String(release.tabela ?? "").trim().toUpperCase();
 
-    // Aceita "TGFCAB" e variantes com sufixo de empresa (ex: "TGFCAB01")
-    if (tabela === "TGFCAB" || tabela.startsWith("TGFCAB")) {
+    // TGFCAB  -> liberacao disparada pelo cabecalho da nota
+    // TGFITE  -> liberacao disparada por um item especifico (ex: variacao de vlr.unit.)
+    // Em ambos os casos nuchave = nunota, entao carregamos o mesmo cabecalho + itens.
+    const needsNota =
+      tabela.startsWith("TGFCAB") || tabela.startsWith("TGFITE");
+
+    if (needsNota) {
       const cabSelect = [
         "nunota",
         "numnota",
