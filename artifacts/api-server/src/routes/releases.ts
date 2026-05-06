@@ -443,9 +443,8 @@ router.get(
 
     const tabela = String(release.tabela ?? "").trim().toUpperCase();
 
-    if (tabela === "TGFCAB") {
-      // Mais colunas - incluindo todos os campos de imposto e os codigos
-      // que serao resolvidos depois (operacao, natureza, empresa, etc.)
+    // Aceita "TGFCAB" e variantes com sufixo de empresa (ex: "TGFCAB01")
+    if (tabela === "TGFCAB" || tabela.startsWith("TGFCAB")) {
       const cabSelect = [
         "nunota",
         "numnota",
@@ -491,17 +490,43 @@ router.get(
         "vlrcofins",
       ].join(",");
 
-      const { data: cab, error: cabErr } = await supabase
+      // Tentativa 1: tsilib.nuchave -> tgfcab.nunota (chave interna, padrao Sankhya)
+      let { data: cab, error: cabErr } = await supabase
         .from("tgfcab")
         .select(cabSelect)
         .eq("nunota", release.nuchave)
         .maybeSingle();
 
       if (cabErr) {
-        logger.warn({ err: cabErr }, "Failed to load tgfcab header");
-      } else if (cab) {
+        logger.warn({ err: cabErr, nuchave }, "Failed to load tgfcab by nunota");
+      }
+
+      // Tentativa 2: fallback tsilib.nuchave -> tgfcab.numnota
+      // Ocorre quando a sincronizacao gravou o numero da NF em vez da chave interna
+      if (!cabErr && !cab) {
+        logger.warn(
+          { nuchave },
+          "tgfcab not found by nunota, retrying by numnota",
+        );
+        const { data: cabByNum, error: cabNumErr } = await supabase
+          .from("tgfcab")
+          .select(cabSelect)
+          .eq("numnota", release.nuchave)
+          .maybeSingle();
+        if (cabNumErr) {
+          logger.warn({ err: cabNumErr, nuchave }, "Failed to load tgfcab by numnota");
+        } else if (cabByNum) {
+          cab = cabByNum;
+        }
+      }
+
+      if (cab) {
         note = cab as Record<string, unknown>;
       }
+
+      // Usa o nunota real do registro encontrado para buscar os itens,
+      // pois pode ser diferente do nuchave quando o fallback por numnota foi acionado
+      const nunotaReal = note?.nunota != null ? Number(note.nunota) : nuchave;
 
       const iteSelect = [
         "nunota",
@@ -535,11 +560,11 @@ router.get(
       const { data: ite, error: iteErr } = await supabase
         .from("tgfite")
         .select(iteSelect)
-        .eq("nunota", release.nuchave)
+        .eq("nunota", nunotaReal)
         .order("sequencia", { ascending: true });
 
       if (iteErr) {
-        logger.warn({ err: iteErr }, "Failed to load tgfite items");
+        logger.warn({ err: iteErr, nunotaReal }, "Failed to load tgfite items");
       } else if (Array.isArray(ite)) {
         items = ite as Record<string, unknown>[];
       }
@@ -657,12 +682,23 @@ router.get(
           : null,
     };
 
+    // Indica se o cabecalho foi encontrado pela chave interna (nunota) ou
+    // pelo numero da NF (numnota). Util para diagnosticar inconsistencias
+    // de sincronizacao entre tsilib.nuchave e tgfcab.
+    const noteMatchedBy =
+      noteEnriched == null
+        ? null
+        : Number(noteEnriched.nunota) === nuchave
+          ? "nunota"
+          : "numnota";
+
     res.json({
       release,
       event,
       note: noteEnriched,
       items: itemsEnriched,
       usuarios,
+      _meta: { tabela, noteMatchedBy },
     });
   },
 );
