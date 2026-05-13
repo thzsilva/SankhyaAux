@@ -80,4 +80,44 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   res.json(GetProductResponse.parse(serialize(data)));
 });
 
+router.patch("/products/:id/toggle-lote", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ error: "ID inválido" });
+    return;
+  }
+
+  // Lê valor atual
+  const { data: current, error: fetchError } = await supabase
+    .from("tgfpro")
+    .select("temrastrolote")
+    .eq("codprod", id)
+    .maybeSingle();
+
+  if (fetchError) {
+    logger.error({ err: fetchError }, "toggle-lote: falha ao buscar tgfpro");
+    res.status(500).json({ error: "Erro ao buscar produto", detail: fetchError.message });
+    return;
+  }
+  if (!current) {
+    res.status(404).json({ error: "Produto não encontrado" });
+    return;
+  }
+
+  const novoValor = current.temrastrolote === "N" ? "S" : "N";
+
+  const { error: updateError } = await supabase
+    .from("tgfpro")
+    .update({ temrastrolote: novoValor })
+    .eq("codprod", id);
+
+  if (updateError) {
+    logger.error({ err: updateError }, "toggle-lote: falha ao atualizar tgfpro");
+    res.status(500).json({ error: "Erro ao atualizar produto", detail: updateError.message });
+    return;
+  }
+
+  res.json({ temrastrolote: novoValor });
+});
+
 export default router;

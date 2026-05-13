@@ -18,6 +18,7 @@ React + Vite, organizado como monorepo (npm workspaces).
 - [Fluxo da aplicação](#fluxo-da-aplicação)
 - [Banco de dados — guia de manutenção](#banco-de-dados--guia-de-manutenção)
 - [Tela de Liberações — como funciona por dentro](#tela-de-liberações--como-funciona-por-dentro)
+- [Tela de Produtos — Toggle de Rastreio de Lote](#tela-de-produtos--toggle-de-rastreio-de-lote)
 - [Manutenção avançada — receitas de cozinha](#manutenção-avançada--receitas-de-cozinha)
 - [Histórico de atualizações](#histórico-de-atualizações)
 - [Scripts disponíveis](#scripts-disponíveis)
@@ -445,6 +446,132 @@ UPDATE tsilib
 
 ---
 
+## Tela de Produtos — Toggle de Rastreio de Lote
+
+A tela de **Produtos** (`/produtos`) exibe a listagem da `tgfpro` e, em cada linha,
+oferece dois botões: **Ver** (abre painel de detalhes) e **Tirar Lote / Ativar Lote**
+(alterna o rastreamento de lote do produto direto no banco).
+
+### O que o botão faz
+
+O campo `temrastrolote` (tipo `character varying`) na tabela `tgfpro` controla se o
+produto exige rastreio de lote no Sankhya. O botão alterna entre dois estados:
+
+| Valor no banco | Significado              | Label exibido  | Cor do botão |
+|----------------|--------------------------|----------------|--------------|
+| `'S'`          | Rastreio **habilitado**  | Tirar Lote     | Verde        |
+| `'N'`          | Rastreio **desabilitado**| Ativar Lote    | Vermelho     |
+| (não alterado) | Estado inicial desconhecido | Tirar Lote  | Cinza neutro |
+
+> A cor e o label refletem o **estado atual** retornado pelo servidor após cada
+> operação. Antes do primeiro clique, o botão é cinza (estado desconhecido), pois
+> o cliente não carrega `temrastrolote` na listagem geral.
+
+### Rota de backend
+
+**Arquivo:** `artifacts/api-server/src/routes/products.ts`
+
+```
+PATCH /products/:id/toggle-lote
+```
+
+Não requer body. O `id` é o `codprod` do produto.
+
+**Fluxo interno:**
+
+```
+1. Valida :id (número inteiro positivo)
+2. SELECT temrastrolote FROM tgfpro WHERE codprod = :id
+3. Inverte o valor: 'N' → 'S' | qualquer outro → 'N'
+4. UPDATE tgfpro SET temrastrolote = <novoValor> WHERE codprod = :id
+5. Retorna { temrastrolote: "S" | "N" }
+```
+
+**Respostas:**
+
+| Status | Corpo                                        | Quando ocorre |
+|--------|----------------------------------------------|---------------|
+| 200    | `{ temrastrolote: "S" \| "N" }`              | Sucesso       |
+| 400    | `{ error: "ID inválido" }`                   | `:id` não é número positivo |
+| 404    | `{ error: "Produto não encontrado" }`        | `codprod` não existe na `tgfpro` |
+| 500    | `{ error: "...", detail: "<msg Supabase>" }` | Falha no banco |
+
+**Código do endpoint:**
+
+```ts
+router.patch("/products/:id/toggle-lote", async (req, res) => {
+  const id = Number(req.params.id);
+  // valida id...
+
+  const { data: current } = await supabase
+    .from("tgfpro")
+    .select("temrastrolote")
+    .eq("codprod", id)
+    .maybeSingle();
+
+  const novoValor = current.temrastrolote === "N" ? "S" : "N";
+
+  await supabase
+    .from("tgfpro")
+    .update({ temrastrolote: novoValor })
+    .eq("codprod", id);
+
+  res.json({ temrastrolote: novoValor });
+});
+```
+
+### Frontend
+
+**Arquivo:** `artifacts/sankhya-suporte/src/pages/products.tsx`
+
+O estado local `loteStatus` (um `Record<number, "S" | "N">`) guarda o valor
+retornado pelo servidor para cada produto, mantido durante a sessão da página.
+
+```tsx
+const [loteStatus, setLoteStatus] = useState<Record<number, "S" | "N">>({});
+```
+
+Ao clicar no botão:
+
+```tsx
+const res = await fetch(`/api/products/${item.id}/toggle-lote`, { method: "PATCH" });
+const body = await res.json();
+
+if (!res.ok) {
+  toast.error(body.detail ?? body.error ?? `Erro ${res.status}`);
+  return;
+}
+
+setLoteStatus((prev) => ({ ...prev, [item.id]: body.temrastrolote }));
+toast.success(body.temrastrolote === "N"
+  ? "Rastreio de lote desabilitado."
+  : "Rastreio de lote habilitado."
+);
+```
+
+**Notificações:** usa `toast` do **sonner** (já montado globalmente em `App.tsx`
+com `<Toaster richColors position="top-right" />`). Exibe toast verde em sucesso
+e toast vermelho em erro, com a mensagem detalhada do Supabase quando disponível.
+
+**Cor e label dinâmicos do botão:**
+
+```
+loteStatus[id] === "N"  → vermelho  + label "Ativar Lote"
+loteStatus[id] === "S"  → verde     + label "Tirar Lote"
+loteStatus[id] === undefined → cinza neutro + label "Tirar Lote"
+```
+
+### Onde fica no código (arquivos essenciais)
+
+| Arquivo | Linha | O que contém |
+|---------|-------|--------------|
+| `artifacts/api-server/src/routes/products.ts` | final | Endpoint `PATCH /products/:id/toggle-lote` |
+| `artifacts/sankhya-suporte/src/pages/products.tsx` | topo | `import { toast } from "sonner"` |
+| `artifacts/sankhya-suporte/src/pages/products.tsx` | estado | `const [loteStatus, setLoteStatus]` |
+| `artifacts/sankhya-suporte/src/pages/products.tsx` | botão | Lógica de toggle + estilo condicional |
+
+---
+
 ## Manutenção avançada — receitas de cozinha
 
 ### 1. Olhar dados direto no banco
@@ -709,7 +836,26 @@ Em ordem de criticidade:
 
 ## Histórico de atualizações
 
-### Refator do `releases.ts` — Detalhes enriquecidos (atual)
+### Toggle de Rastreio de Lote na tela de Produtos (atual)
+
+**Motivação:** permitir ativar/desativar o rastreio de lote de um produto
+(`tgfpro.temrastrolote`) diretamente pelo app, sem precisar acessar o Sankhya.
+
+**Backend (`artifacts/api-server/src/routes/products.ts`):**
+- Novo endpoint `PATCH /products/:id/toggle-lote`.
+- Lê o valor atual de `temrastrolote`, inverte (`'N'` ↔ `'S'`) e persiste.
+- Retorna `{ temrastrolote }` com o novo valor para o frontend atualizar o estado local.
+- Erros do Supabase são repassados no campo `detail` da resposta para facilitar diagnóstico.
+
+**Frontend (`artifacts/sankhya-suporte/src/pages/products.tsx`):**
+- Estado `loteStatus: Record<number, "S" | "N">` rastreia o estado por produto na sessão.
+- Botão **"Tirar Lote" / "Ativar Lote"** exibido ao lado do "Ver" em cada linha.
+- Cor do botão reflete o estado atual: verde (habilitado), vermelho (desabilitado), cinza (desconhecido).
+- Notificações via `toast.success` / `toast.error` do **sonner** (padrão do site).
+
+---
+
+### Refator do `releases.ts` — Detalhes enriquecidos
 
 **Motivação:** o liberador precisava ver impostos, descrições e nomes (não só
 códigos) na hora de aprovar uma liberação. Antes só apareciam números.

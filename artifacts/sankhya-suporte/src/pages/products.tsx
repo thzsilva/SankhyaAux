@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useGetProduct, useListProducts, type Product } from "@workspace/api-client-react";
 import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
 
@@ -9,6 +10,7 @@ export default function Products() {
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loteStatus, setLoteStatus] = useState<Record<number, "S" | "N">>({});
 
   const { data, isLoading, isError } = useListProducts();
   const selectedQuery = useGetProduct(selectedId ?? 0);
@@ -91,13 +93,42 @@ export default function Products() {
                   <td className="hidden px-4 py-3 text-sm text-slate-500 sm:table-cell">{item.code}</td>
                   <td className="hidden px-4 py-3 text-sm text-slate-500 md:table-cell">{item.category}</td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(item.id)}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
-                    >
-                      Ver
-                    </button>
+                    <div className="inline-flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(item.id)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                      >
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/products/${item.id}/toggle-lote`, { method: "PATCH" });
+                            const body = await res.json() as { temrastrolote?: "S" | "N"; error?: string; detail?: string };
+                            if (!res.ok) {
+                              toast.error(body.detail ?? body.error ?? `Erro ${res.status}`);
+                              return;
+                            }
+                            const novo = body.temrastrolote!;
+                            setLoteStatus((prev) => ({ ...prev, [item.id]: novo }));
+                            toast.success(novo === "N" ? "Rastreio de lote desabilitado." : "Rastreio de lote habilitado.");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Falha ao alterar rastreio de lote.");
+                          }
+                        }}
+                        className={
+                          loteStatus[item.id] === "N"
+                            ? "rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-100"
+                            : loteStatus[item.id] === "S"
+                            ? "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100"
+                            : "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
+                        }
+                      >
+                        {loteStatus[item.id] === "N" ? "Habilitar Rastreio de Lote" : "Desabilitar Rastreio de Lote"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
