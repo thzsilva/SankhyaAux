@@ -19,4 +19,5 @@ export interface Product {
   /** @nullable */
   sankhyaCode?: string | null;
   createdAt: Date;
+  temrastrolote: "S" | "N";
 }

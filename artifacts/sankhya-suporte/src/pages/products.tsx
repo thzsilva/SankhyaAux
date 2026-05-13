@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetProduct, useListProducts, type Product } from "@workspace/api-client-react";
 import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,19 @@ export default function Products() {
 
   const { data, isLoading, isError } = useListProducts();
   const selectedQuery = useGetProduct(selectedId ?? 0);
+
+  useEffect(() => {
+    if (!data) return;
+    setLoteStatus((prev) => {
+      const next: Record<number, "S" | "N"> = { ...prev };
+      for (const item of data) {
+        if (!(item.id in next)) {
+          next[item.id] = item.temrastrolote === "N" ? "N" : "S";
+        }
+      }
+      return next;
+    });
+  }, [data]);
 
   const categories = useMemo(() => {
     const values = new Set((data ?? []).map((item) => item.category).filter(Boolean));

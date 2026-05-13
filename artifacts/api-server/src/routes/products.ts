@@ -22,6 +22,7 @@ function serialize(row: any) {
     category: row.codgrupoprod != null ? String(row.codgrupoprod) : "",
     sankhyaCode: String(row.codprod ?? ""),
     createdAt: row.dtalter ? new Date(String(row.dtalter)) : new Date(),
+    temrastrolote: row.temrastrolote === "N" ? "N" : "S",
   };
 }
 

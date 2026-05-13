@@ -162,6 +162,7 @@ export interface Product {
   /** @nullable */
   sankhyaCode?: string | null;
   createdAt: string;
+  temrastrolote: "S" | "N";
 }
 
 export interface ProductInput {

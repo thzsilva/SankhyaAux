@@ -310,6 +310,7 @@ export const ListProductsResponseItem = zod.object({
   "name": zod.string(),
   "description": zod.string().nullish(),
   "unit": zod.string(),
+  "temrastrolote": zod.enum(["S", "N"]).default("S"),
   "unitPrice": zod.number(),
   "stock": zod.number(),
   "category": zod.string(),
