@@ -4,14 +4,34 @@
   * {
     box-sizing: border-box;
   }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     margin: 0;
-    font-family: Inter, Arial, sans-serif;
-    background:
-      radial-gradient(1200px circle at 10% 0%, rgba(16, 185, 129, 0.08), transparent 55%),
-      radial-gradient(1000px circle at 100% 0%, rgba(14, 165, 233, 0.08), transparent 45%),
-      #f8fafc;
+    font-family: Inter, system-ui, -apple-system, Arial, sans-serif;
+    background-color: #f1f5f9;
     color: #0f172a;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 }

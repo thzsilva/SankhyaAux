@@ -3,63 +3,19 @@ import {
   useGetRecentActivity,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { FileText, ShieldCheck, UserPlus, PackageSearch, ArrowRight } from "lucide-react";
+import { FileText, ShieldCheck, UserPlus, PackageSearch, ArrowRight, Users, CheckCircle2, Clock } from "lucide-react";
 
 const tiles = [
-  {
-    href: "/relatorios",
-    title: "Relatorios",
-    description: "Visualize e exporte dados do sistema",
-    icon: FileText,
-    color: "text-sky-700",
-    bg: "bg-sky-100",
-    ring: "ring-sky-200",
-  },
-  {
-    href: "/liberacoes",
-    title: "Liberacoes",
-    description: "Aprovacoes e controle de acesso",
-    icon: ShieldCheck,
-    color: "text-emerald-700",
-    bg: "bg-emerald-100",
-    ring: "ring-emerald-200",
-  },
-  {
-    href: "/clientes",
-    title: "Clientes",
-    description: "Cadastro e historico de clientes",
-    icon: UserPlus,
-    color: "text-rose-700",
-    bg: "bg-rose-100",
-    ring: "ring-rose-200",
-  },
-  {
-    href: "/produtos",
-    title: "Produtos",
-    description: "Consulta e movimentacoes",
-    icon: PackageSearch,
-    color: "text-amber-700",
-    bg: "bg-amber-100",
-    ring: "ring-amber-200",
-  },
+  { href: "/relatorios", title: "Relatorios", description: "Visualize e exporte dados do sistema", icon: FileText, color: "text-sky-600", bg: "bg-sky-50", border: "border-sky-100" },
+  { href: "/liberacoes", title: "Liberacoes", description: "Aprovacoes e controle de acesso", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
+  { href: "/clientes", title: "Clientes", description: "Cadastro e historico de clientes", icon: UserPlus, color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-100" },
+  { href: "/produtos", title: "Produtos", description: "Consulta e movimentacoes", icon: PackageSearch, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
 ] as const;
 
 const statusStyles: Record<string, { label: string; cls: string; dot: string }> = {
-  ok: {
-    label: "OK",
-    cls: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    dot: "bg-emerald-500",
-  },
-  pendente: {
-    label: "Pendente",
-    cls: "bg-amber-50 text-amber-700 ring-amber-200",
-    dot: "bg-amber-500",
-  },
-  alerta: {
-    label: "Alerta",
-    cls: "bg-rose-50 text-rose-700 ring-rose-200",
-    dot: "bg-rose-500",
-  },
+  ok: { label: "OK", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200", dot: "bg-emerald-500" },
+  pendente: { label: "Pendente", cls: "bg-amber-50 text-amber-700 ring-amber-200", dot: "bg-amber-400" },
+  alerta: { label: "Alerta", cls: "bg-rose-50 text-rose-700 ring-rose-200", dot: "bg-rose-500" },
 };
 
 function classifyActivity(action: string): keyof typeof statusStyles {
@@ -85,87 +41,102 @@ function formatRelativeTime(iso: string): string {
 export default function Dashboard() {
   const { data: summary, isLoading } = useGetDashboardSummary();
   const { data: activityRaw } = useGetRecentActivity();
-  // Defensive: the endpoint may be missing or return a non-array (e.g. an
-  // HTML error page parsed as text). Always coerce to an array so the page
-  // doesn't crash.
   const activity = Array.isArray(activityRaw) ? activityRaw : [];
 
   return (
-    <div className="space-y-5">
-      <section className="grid gap-3 sm:grid-cols-2">
-        <article className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">Clientes ativos</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {isLoading ? "..." : summary?.activeClients ?? 0}
+    <div className="space-y-6">
+      {/* Metric cards */}
+      <section className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-500">Clientes ativos</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50">
+              <Users className="h-4 w-4 text-violet-600" />
+            </div>
+          </div>
+          <p className="mt-4 text-3xl font-bold text-slate-900 tabular-nums">
+            {isLoading
+              ? <span className="inline-block h-8 w-14 animate-pulse rounded-lg bg-slate-100" />
+              : (summary?.activeClients ?? 0)}
           </p>
-          <p className="mt-1 text-xs font-medium text-emerald-600">
-            +{summary?.newClientsThisMonth ?? 0} este mes
+          <p className="mt-1.5 text-xs font-medium text-emerald-600">
+            +{isLoading ? "–" : (summary?.newClientsThisMonth ?? 0)} este mes
           </p>
-        </article>
-        <article className="rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">Liberacoes hoje</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {isLoading ? "..." : summary?.releasesToday ?? 0}
+        </div>
+
+        <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-500">Liberacoes hoje</p>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            </div>
+          </div>
+          <p className="mt-4 text-3xl font-bold text-slate-900 tabular-nums">
+            {isLoading
+              ? <span className="inline-block h-8 w-14 animate-pulse rounded-lg bg-slate-100" />
+              : (summary?.releasesToday ?? 0)}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {summary?.pendingReleases ?? 0} pendentes
-          </p>
-        </article>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <Clock className="h-3 w-3 text-amber-500" />
+            <p className="text-xs font-medium text-amber-600">
+              {isLoading ? "–" : (summary?.pendingReleases ?? 0)} pendentes
+            </p>
+          </div>
+        </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        {tiles.map((tile) => {
-          const Icon = tile.icon;
-          return (
-            <Link
-              key={tile.href}
-              href={tile.href}
-              className="group flex flex-col rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300"
-            >
-              <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${tile.bg} ${tile.color} ring-1 ${tile.ring}`}>
-                <Icon className="h-5 w-5" />
-              </span>
-              <p className="mt-3 text-base font-semibold text-slate-900">{tile.title}</p>
-              <p className="mt-1 text-xs leading-snug text-slate-500">{tile.description}</p>
-              <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-slate-600 transition group-hover:text-emerald-700">
-                Acessar <ArrowRight className="h-3 w-3" />
-              </span>
-            </Link>
-          );
-        })}
-      </section>
-
+      {/* Quick access */}
       <section>
-        <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-          Atividade recente
-        </p>
-        <div className="mt-2 space-y-2">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Acesso rapido</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {tiles.map((tile) => {
+            const Icon = tile.icon;
+            return (
+              <Link
+                key={tile.href}
+                href={tile.href}
+                className="group flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 active:scale-[0.99]"
+              >
+                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border ${tile.bg} ${tile.border} ${tile.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">{tile.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{tile.description}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 flex-shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-500" />
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Recent activity */}
+      <section>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Atividade recente</p>
+        <div className="space-y-2">
           {activity.slice(0, 5).map((item) => {
             const status = statusStyles[classifyActivity(item.action)];
             return (
-              <article
-                key={item.id}
-                className="flex items-center justify-between rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-sm"
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${status.dot}`} />
+              <div key={item.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3.5 ring-1 ring-slate-200 shadow-sm">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className={`h-2 w-2 flex-shrink-0 rounded-full ${status.dot}`} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">{item.description}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{formatRelativeTime(item.createdAt)}</p>
+                    <p className="truncate text-sm font-medium text-slate-800">{item.description}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">{formatRelativeTime(item.createdAt)}</p>
                   </div>
                 </div>
-                <span
-                  className={`ml-3 flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${status.cls}`}
-                >
+                <span className={`ml-3 flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${status.cls}`}>
                   {status.label}
                 </span>
-              </article>
+              </div>
             );
           })}
           {activity.length === 0 && (
-            <p className="rounded-2xl bg-white p-4 text-center text-sm text-slate-500 ring-1 ring-slate-200 shadow-sm">
-              Sem atividades recentes.
-            </p>
+            <div className="flex flex-col items-center justify-center rounded-2xl bg-white px-4 py-12 ring-1 ring-slate-200 shadow-sm">
+              <CheckCircle2 className="h-8 w-8 text-slate-200" />
+              <p className="mt-2 text-sm text-slate-400">Sem atividades recentes.</p>
+            </div>
           )}
         </div>
       </section>
