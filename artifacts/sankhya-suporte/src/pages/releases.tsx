@@ -814,14 +814,15 @@ export default function Releases() {
                           <tbody className="divide-y divide-slate-100">
                             {details.items.map((it) => {
                               const cst = it.tributacao?.cst ?? (it.tributacao?.csosn != null ? it.tributacao.csosn : null) ?? (it.csosn != null ? String(it.csosn) : null);
-                              const prodLabel = it.produto?.descrprod ?? (it.codprod != null ? `#${it.codprod}` : "-");
                               return (
                                 <tr key={`${it.nunota}-${it.sequencia}`} className="hover:bg-slate-50">
                                   <td className="px-2 py-2 text-slate-500">{it.sequencia ?? "-"}</td>
                                   <td className="px-2 py-2">
-                                    <div className="font-medium">{prodLabel}</div>
-                                    {it.produto?.referencia && <div className="text-[10px] text-slate-400">Ref: {it.produto.referencia}</div>}
-                                    {it.codprod != null && it.produto?.descrprod && <div className="text-[10px] text-slate-400">#{it.codprod}</div>}
+                                    <div className="flex items-baseline gap-2">
+                                      {it.codprod != null && <span className="shrink-0 font-mono text-xs text-slate-400">{it.codprod}</span>}
+                                      <span className="font-medium text-slate-900">{it.produto?.descrprod ?? "-"}</span>
+                                    </div>
+                                    {it.produto?.referencia && <div className="text-[10px] text-slate-400 mt-0.5">Ref: {it.produto.referencia}</div>}
                                   </td>
                                   <td className="px-2 py-2 text-right">{fmtQty(it.qtdneg)}</td>
                                   <td className="px-2 py-2 text-slate-500">{it.codvol ?? "-"}</td>
