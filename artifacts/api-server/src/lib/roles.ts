@@ -12,10 +12,6 @@ export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
 }
 
-export function canRead(role: Role): boolean {
-  return role === "SA" || role === "only_read" || role === "robot" || role === "human";
-}
-
 export function canWrite(role: Role): boolean {
   return role === "SA" || role === "robot";
 }

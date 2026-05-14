@@ -115,21 +115,6 @@ router.get("/auth/me", requireAuth, async (req: AuthedRequest, res): Promise<voi
   res.json({ user: req.user });
 });
 
-export function requireWrite(req: AuthedRequest, res: Response, next: NextFunction): void {
-  if (!req.user || !canWrite(req.user.role)) {
-    res.status(403).json({ error: "Sem permissao de gravacao" });
-    return;
-  }
-  next();
-}
-
-export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction): void {
-  if (!req.user || !isAdmin(req.user.role)) {
-    res.status(403).json({ error: "Acesso restrito ao administrador" });
-    return;
-  }
-  next();
-}
 
 interface SeedUser {
   email: string;

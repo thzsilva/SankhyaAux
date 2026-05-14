@@ -11,6 +11,7 @@ import Reports from "@/pages/reports";
 import Releases from "@/pages/releases";
 import Login from "@/pages/login";
 import { AuthProvider, ROLE_BADGE, ROLE_LABEL, useAuth } from "@/lib/auth";
+import PwaInstallPrompt from "@/components/pwa-install-prompt";
 
 const queryClient = new QueryClient();
 
@@ -247,6 +248,7 @@ export default function App() {
           <Gate />
         </WouterRouter>
         <Toaster richColors position="top-right" />
+        <PwaInstallPrompt />
       </AuthProvider>
     </QueryClientProvider>
   );

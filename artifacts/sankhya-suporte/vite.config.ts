@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { VitePWA } from "vite-plugin-pwa";
 
 const rawPort = process.env.PORT ?? "5173";
 const port = Number(rawPort);
@@ -14,11 +15,68 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["sankhya.png", "favicon.svg"],
+      manifest: {
+        name: "Suporte Sankhya — GreenCore",
+        short_name: "GreenCore",
+        description: "Sistema interno de suporte Sankhya: produtos, liberações e clientes.",
+        theme_color: "#10b981",
+        background_color: "#f8fafc",
+        display: "standalone",
+        orientation: "portrait-primary",
+        scope: "/",
+        start_url: "/",
+        icons: [
+          {
+            src: "/sankhya.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/sankhya.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "/sankhya.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        // Cacheia o shell do app e assets estáticos
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Rotas de API nunca vão para cache — sempre buscam no servidor
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/backend/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-cache",
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "gstatic-fonts-cache",
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
-      "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
     },
     dedupe: ["react", "react-dom"],
   },
