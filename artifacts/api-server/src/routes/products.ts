@@ -37,7 +37,18 @@ router.get("/products", async (req, res): Promise<void> => {
 
   if (parsed.data.search) {
     const q = `%${parsed.data.search}%`;
-    query = query.or(`descrprod.ilike.${q},referencia.ilike.${q}`);
+
+    // [ALTERADO] antes só buscava por descrprod e referencia via ilike.
+    // agora verifica se o termo é numérico para incluir codprod.eq na busca,
+    // permitindo encontrar produtos pelo código Sankhya mesmo que não estejam
+    // nos primeiros 1000 registros carregados pelo frontend
+    const numericSearch = Number(parsed.data.search);
+
+    if (Number.isFinite(numericSearch) && numericSearch > 0) {
+      query = query.or(`descrprod.ilike.${q},referencia.ilike.${q},codprod.eq.${numericSearch}`);
+    } else {
+      query = query.or(`descrprod.ilike.${q},referencia.ilike.${q}`);
+    }
   }
 
   if (parsed.data.category) {
@@ -88,7 +99,6 @@ router.patch("/products/:id/toggle-lote", async (req, res): Promise<void> => {
     return;
   }
 
-  // Lê valor atual
   const { data: current, error: fetchError } = await supabase
     .from("tgfpro")
     .select("temrastrolote")
