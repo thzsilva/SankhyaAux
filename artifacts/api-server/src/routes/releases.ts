@@ -562,6 +562,9 @@ router.get(
         "vlriss",
         "cstipi",
         "csosn",
+        // precobase é necessário para calcular % Desc Aplic = (1 - vlrunit/precobase)*100
+        "precobase",
+        "ad_precobase_bk",
       ].join(",");
 
       const { data: ite, error: iteErr } = await supabase

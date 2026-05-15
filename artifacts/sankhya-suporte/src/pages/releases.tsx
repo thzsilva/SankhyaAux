@@ -141,6 +141,8 @@ interface NoteItem {
   vlrtot?: number | string | null;
   vlrdesc?: number | string | null;
   percdesc?: number | string | null;
+  precobase?: number | string | null;
+  ad_precobase_bk?: number | string | null;
   observacao?: string | null;
   baseicms?: number | string | null;
   aliqicms?: number | string | null;
@@ -548,7 +550,12 @@ export default function Releases() {
                     </span>
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                    <p className="text-sm font-semibold text-slate-900">{fmtMoney(row.vlratual)}</p>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{fmtMoney(row.vlratual)}</p>
+                      {row.perclimite != null && Number.isFinite(Number(row.perclimite)) && Number(row.perclimite) !== 0 && (
+                        <p className="mt-0.5 text-xs font-semibold text-amber-600">{fmtPerc(row.perclimite)} desc.</p>
+                      )}
+                    </div>
                     <div className="flex flex-wrap justify-end gap-2">
                       <button
                         type="button"
@@ -589,10 +596,10 @@ export default function Releases() {
               <table className="min-w-full divide-y divide-slate-100">
                 <thead>
                   <tr className="bg-slate-50">
-                    {["Chave", "Tabela / Evento", "Solicitante", "Solicitacao", "Limite", "Atual", "Liberado", "Status", "Acoes"].map((h, i) => (
+                    {["Chave", "Tabela / Evento", "Solicitante", "Solicitacao", "Limite", "Atual", "% Desc", "Liberado", "Status", "Acoes"].map((h, i) => (
                       <th
                         key={h}
-                        className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 ${i >= 4 && i <= 6 ? "text-right" : i === 8 ? "text-right" : "text-left"}`}
+                        className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 ${i >= 4 && i <= 7 ? "text-right" : i === 9 ? "text-right" : "text-left"}`}
                       >
                         {h}
                       </th>
@@ -623,6 +630,15 @@ export default function Releases() {
                         <td className="px-4 py-3 text-sm text-slate-500">{fmtDate(row.dhsolicit)}</td>
                         <td className="px-4 py-3 text-right text-sm text-slate-600 tabular-nums">{fmtMoney(row.vlrlimite)}</td>
                         <td className="px-4 py-3 text-right text-sm font-semibold text-slate-900 tabular-nums">{fmtMoney(row.vlratual)}</td>
+                        <td className="px-4 py-3 text-right text-sm tabular-nums">
+                          {row.perclimite != null && Number.isFinite(Number(row.perclimite)) && Number(row.perclimite) !== 0 ? (
+                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                              {fmtPerc(row.perclimite)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-right text-sm tabular-nums">
                           <div className="text-slate-600">{fmtMoney(row.vlrliberado)}</div>
                           {row.dhlib && <div className="text-xs text-slate-400">{fmtDate(row.dhlib)}</div>}
@@ -965,14 +981,20 @@ export default function Releases() {
                         <table className="min-w-full divide-y divide-slate-100 text-xs">
                           <thead className="bg-slate-50">
                             <tr>
-                              {["Seq", "Produto", "Qtd", "Un", "Vlr unit.", "Desc.", "Total", "CST/CSOSN", "Base ICMS", "% ICMS", "Vlr ICMS", "Vlr IPI", "ICMS-ST"].map((h, i) => (
-                                <th key={h} className={`px-2 py-2 font-semibold uppercase text-slate-500 ${[2,4,5,6,8,9,10,11,12].includes(i) ? "text-right" : "text-left"}`}>{h}</th>
+                              {["Seq", "Produto", "Qtd", "Un", "Preço Base", "Vlr Vendido", "% Desc Aplic", "Desc. (R$)", "Total", "CST/CSOSN", "Base ICMS", "% ICMS", "Vlr ICMS", "Vlr IPI", "ICMS-ST"].map((h, i) => (
+                                <th key={h} className={`px-2 py-2 font-semibold uppercase text-slate-500 ${[2,4,5,6,7,8,10,11,12,13,14].includes(i) ? "text-right" : "text-left"}`}>{h}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {details.items.map((it) => {
                               const cst = it.tributacao?.cst ?? (it.tributacao?.csosn != null ? it.tributacao.csosn : null) ?? (it.csosn != null ? String(it.csosn) : null);
+                              // % Desc Aplic = (1 - vlrunit / precobase) * 100
+                              // Usa ad_precobase_bk como fallback se precobase vier nulo
+                              const precoBase = Number(it.precobase ?? it.ad_precobase_bk ?? 0);
+                              const vlrUnit = Number(it.vlrunit ?? 0);
+                              const percDescAplic = precoBase > 0 ? (1 - vlrUnit / precoBase) * 100 : null;
+                              const descAplicIsHigh = percDescAplic != null && percDescAplic > 0;
                               return (
                                 <tr key={`${it.nunota}-${it.sequencia}`} className="hover:bg-slate-50">
                                   <td className="px-2 py-2 text-slate-500">{it.sequencia ?? "-"}</td>
@@ -985,7 +1007,34 @@ export default function Releases() {
                                   </td>
                                   <td className="px-2 py-2 text-right">{fmtQty(it.qtdneg)}</td>
                                   <td className="px-2 py-2 text-slate-500">{it.codvol ?? "-"}</td>
-                                  <td className="px-2 py-2 text-right">{fmtMoney(it.vlrunit)}</td>
+                                  {/* Preço Base — referência de onde o desconto é calculado */}
+                                  <td className="px-2 py-2 text-right">
+                                    {precoBase > 0 ? (
+                                      <span className="font-medium text-slate-500">{fmtMoney(precoBase)}</span>
+                                    ) : (
+                                      <span className="text-slate-300">-</span>
+                                    )}
+                                  </td>
+                                  {/* Vlr Vendido — preço efetivamente praticado */}
+                                  <td className="px-2 py-2 text-right">
+                                    <span className={`font-semibold ${descAplicIsHigh ? "text-amber-700" : "text-slate-900"}`}>
+                                      {fmtMoney(it.vlrunit)}
+                                    </span>
+                                    {descAplicIsHigh && precoBase > 0 && (
+                                      <div className="text-[10px] text-amber-500 mt-0.5">
+                                        ↓ de {fmtMoney(precoBase)}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="px-2 py-2 text-right">
+                                    {percDescAplic != null ? (
+                                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-bold ring-1 ${descAplicIsHigh ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-500 ring-slate-200"}`}>
+                                        {fmtPerc(percDescAplic)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400">-</span>
+                                    )}
+                                  </td>
                                   <td className="px-2 py-2 text-right text-slate-500">{fmtMoney(it.vlrdesc)}</td>
                                   <td className="px-2 py-2 text-right font-semibold">{fmtMoney(it.vlrtot)}</td>
                                   <td className="px-2 py-2">
