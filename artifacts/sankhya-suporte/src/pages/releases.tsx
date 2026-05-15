@@ -201,11 +201,20 @@ function fmtDate(value: string | null | undefined): string {
   return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// fnção responsavel por formatar o VLRVENDIDO
 function fmtMoney(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return "-";
+
   const num = typeof value === "number" ? value : Number(value);
+
   if (!Number.isFinite(num)) return "-";
-  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  return num.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  });
 }
 
 function fmtQty(value: number | string | null | undefined): string {

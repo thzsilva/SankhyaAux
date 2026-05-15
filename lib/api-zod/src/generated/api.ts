@@ -185,6 +185,10 @@ export const DeleteTicketParams = zod.object({
 })
 
 
+export const ListClientsQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+})
+
 export const ListClientsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),

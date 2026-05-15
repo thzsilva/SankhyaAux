@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { supabase } from "../app";
 import { logger } from "../lib/logger";
 import {
+  ListClientsQueryParams,
   ListClientsResponse,
   GetClientParams,
   GetClientResponse,
@@ -9,19 +10,8 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/clients", async (_req, res): Promise<void> => {
-  const { data, error } = await supabase
-    .from("tgfpar")
-    .select("*")
-    .order("dtcad", { ascending: false });
-
-  if (error) {
-    logger.error({ err: error }, "Failed to query tgfpar clients");
-    res.status(500).json({ error: "Erro interno ao buscar clientes" });
-    return;
-  }
-
-  const clients = (data ?? []).map((row: any) => ({
+function serializeClient(row: any) {
+  return {
     id: Number(row.codparc ?? 0),
     name: String(row.nomeparc ?? ""),
     sankhyaCode: String(row.codparc ?? ""),
@@ -30,9 +20,45 @@ router.get("/clients", async (_req, res): Promise<void> => {
     email: String(row.email ?? ""),
     notes: row.razaosocial ? String(row.razaosocial) : null,
     createdAt: row.dtcad ? new Date(String(row.dtcad)) : new Date(),
-  }));
+  };
+}
 
-  res.json(ListClientsResponse.parse(clients));
+router.get("/clients", async (req, res): Promise<void> => {
+  const parsed = ListClientsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  let query = supabase
+    .from("tgfpar")
+    .select("codparc,nomeparc,cgc_cpf,telefone,email,razaosocial,dtcad")
+    .order("dtcad", { ascending: false })
+    .limit(1000);
+
+  if (parsed.data.search) {
+    const q = `%${parsed.data.search}%`;
+    const numericSearch = Number(parsed.data.search);
+
+    // Se for numérico inclui codparc.eq para bater exatamente o código
+    if (Number.isFinite(numericSearch) && numericSearch > 0) {
+      query = query.or(
+        `nomeparc.ilike.${q},cgc_cpf.ilike.${q},razaosocial.ilike.${q},codparc.eq.${numericSearch}`,
+      );
+    } else {
+      query = query.or(`nomeparc.ilike.${q},cgc_cpf.ilike.${q},razaosocial.ilike.${q}`);
+    }
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error({ err: error }, "Failed to query tgfpar clients");
+    res.status(500).json({ error: "Erro interno ao buscar clientes" });
+    return;
+  }
+
+  res.json(ListClientsResponse.parse((data ?? []).map(serializeClient)));
 });
 
 router.get("/clients/:id", async (req, res): Promise<void> => {
@@ -59,18 +85,7 @@ router.get("/clients/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const client = {
-    id: Number(data.codparc ?? 0),
-    name: String(data.nomeparc ?? ""),
-    sankhyaCode: String(data.codparc ?? ""),
-    cnpj: String(data.cgc_cpf ?? ""),
-    phone: String(data.telefone ?? ""),
-    email: String(data.email ?? ""),
-    notes: data.razaosocial ? String(data.razaosocial) : null,
-    createdAt: data.dtcad ? new Date(String(data.dtcad)) : new Date(),
-  };
-
-  res.json(GetClientResponse.parse(client));
+  res.json(GetClientResponse.parse(serializeClient(data)));
 });
 
 export default router;

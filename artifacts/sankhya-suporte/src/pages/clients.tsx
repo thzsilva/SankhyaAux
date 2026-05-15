@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetClient, useListClients, type Client } from "@workspace/api-client-react";
 import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -9,10 +9,14 @@ export default function Clients() {
   const [startsWith, setStartsWith] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [serverResults, setServerResults] = useState<Client[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
+  // Carrega até 1000 parceiros — cobre a grande maioria dos casos sem servidor
   const { data, isLoading, isError } = useListClients();
   const selectedQuery = useGetClient(selectedId ?? 0);
 
+  // Filtragem local sobre os dados já carregados
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return (data ?? []).filter((item) => {
@@ -27,8 +31,30 @@ export default function Clients() {
     });
   }, [data, search, startsWith]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Busca no servidor quando o termo não bate nada nos dados locais.
+  // Idêntico ao comportamento de products.tsx:
+  //   - só dispara se há termo de busca E filtered está vazio
+  //   - aborta requisição antiga antes de disparar nova
+  useEffect(() => {
+    const term = search.trim();
+    if (!term || filtered.length > 0) {
+      setServerResults([]);
+      return;
+    }
+    const controller = new AbortController();
+    setIsSearching(true);
+    fetch(`/api/clients?search=${encodeURIComponent(term)}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((res) => setServerResults(res as Client[]))
+      .catch(() => {})
+      .finally(() => setIsSearching(false));
+    return () => controller.abort();
+  }, [search, filtered.length]);
+
+  // Se a busca local retornou algo → usa ela; senão usa resultado do servidor
+  const displayItems = filtered.length > 0 ? filtered : serverResults;
+  const totalPages = Math.max(1, Math.ceil(displayItems.length / PAGE_SIZE));
+  const pageItems = displayItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const selectedClient = (selectedQuery.data ?? null) as Client | null;
 
   return (
@@ -55,7 +81,7 @@ export default function Clients() {
           ))}
         </select>
         <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-500 shadow-sm">
-          {filtered.length} registro(s)
+          {displayItems.length} registro(s)
         </div>
       </div>
 
@@ -76,13 +102,16 @@ export default function Clients() {
               {isLoading && (
                 <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">Carregando clientes...</td></tr>
               )}
+              {isSearching && (
+                <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">Buscando no servidor...</td></tr>
+              )}
               {isError && (
                 <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-rose-600">Erro ao carregar clientes.</td></tr>
               )}
-              {!isLoading && !isError && pageItems.length === 0 && (
+              {!isLoading && !isSearching && !isError && pageItems.length === 0 && (
                 <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">Nenhum cliente encontrado.</td></tr>
               )}
-              {!isLoading && !isError && pageItems.map((item) => (
+              {!isLoading && !isSearching && !isError && pageItems.map((item) => (
                 <tr key={item.id} className="group transition hover:bg-slate-50">
                   <td className="px-4 py-3 text-sm font-mono font-medium text-slate-700">{item.sankhyaCode}</td>
                   <td className="px-4 py-3 text-sm font-medium text-slate-900">{item.name}</td>
@@ -129,41 +158,49 @@ export default function Clients() {
 
       {/* Detail panel */}
       {selectedId && (
-        <div className="rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h3 className="text-sm font-semibold text-slate-900">Detalhes do Cliente</h3>
-            <button
-              type="button"
-              onClick={() => setSelectedId(null)}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="p-5">
-            {selectedQuery.isLoading && <p className="text-sm text-slate-400">Carregando...</p>}
-            {selectedQuery.isError && <p className="text-sm text-rose-600">Erro ao carregar detalhes.</p>}
-            {selectedClient && (
-              <div className="grid gap-4 text-sm sm:grid-cols-2">
-                {[
-                  ["Codigo", selectedClient.sankhyaCode],
-                  ["Nome", selectedClient.name],
-                  ["CPF/CNPJ", selectedClient.cnpj],
-                  ["Telefone", selectedClient.phone],
-                  ["E-mail", selectedClient.email],
-                  ["Criado em", new Date(selectedClient.createdAt).toLocaleDateString("pt-BR")],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-                    <p className="mt-1 font-medium text-slate-800">{value || "-"}</p>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setSelectedId(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h3 className="text-sm font-semibold text-slate-900">Detalhes do Cliente</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-5">
+              {selectedQuery.isLoading && <p className="text-sm text-slate-400">Carregando...</p>}
+              {selectedQuery.isError && <p className="text-sm text-rose-600">Erro ao carregar detalhes.</p>}
+              {selectedClient && (
+                <div className="grid gap-4 text-sm sm:grid-cols-2">
+                  {[
+                    ["Codigo", selectedClient.sankhyaCode],
+                    ["Nome", selectedClient.name],
+                    ["CPF/CNPJ", selectedClient.cnpj],
+                    ["Telefone", selectedClient.phone],
+                    ["E-mail", selectedClient.email],
+                    ["Criado em", new Date(selectedClient.createdAt).toLocaleDateString("pt-BR")],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                      <p className="mt-1 font-medium text-slate-800">{value || "-"}</p>
+                    </div>
+                  ))}
+                  <div className="sm:col-span-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Observacoes</p>
+                    <p className="mt-1 font-medium text-slate-800">{selectedClient.notes || "-"}</p>
                   </div>
-                ))}
-                <div className="sm:col-span-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Observacoes</p>
-                  <p className="mt-1 font-medium text-slate-800">{selectedClient.notes || "-"}</p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
