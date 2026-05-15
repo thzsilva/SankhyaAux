@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
@@ -283,7 +284,24 @@ export default function Releases() {
   const [submitting, setSubmitting] = useState(false);
   const [obslibInput, setObslibInput] = useState("");
 
+  // ── estado para "Liberar Tudo" (lote por nuchave) ──────────────────
+  const [bulkNuchave, setBulkNuchave] = useState<number | null>(null);
+  const [bulkObslib, setBulkObslib] = useState("");
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
   const canRelease = user?.role === "robot" || user?.role === "human" || user?.role === "SA";
+
+  // Quantas linhas PENDENTES existem para cada nuchave nos dados carregados.
+  // Usado para decidir se exibe o botão "Liberar Tudo".
+  const pendingCountByNuchave = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const row of rows) {
+      if (!row.dhlib && row.reprovado !== "S") {
+        map.set(row.nuchave, (map.get(row.nuchave) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [rows]);
 
   useEffect(() => {
     if (!token) return;
@@ -368,6 +386,35 @@ export default function Releases() {
       toast.error(err instanceof Error ? err.message : "Erro ao liberar.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function submitBulkRelease() {
+    if (bulkNuchave === null || !token) return;
+    const obslib = bulkObslib.trim();
+    if (!obslib) { toast.error("Informe a observacao da liberacao."); return; }
+    setBulkSubmitting(true);
+    try {
+      const res = await fetch(apiUrl(`/releases/${bulkNuchave}/release-all`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ obslib }),
+      });
+      const body = await res.json().catch(() => ({})) as { released?: number; failed?: number; total?: number; error?: string };
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      const { released = 0, failed = 0, total = 0 } = body;
+      if (failed === 0) {
+        toast.success(`${released} liberação(ões) efetuada(s) com sucesso.`);
+      } else {
+        toast.warning(`${released} de ${total} liberações concluídas. ${failed} falharam — verifique os logs.`);
+      }
+      setBulkNuchave(null);
+      setBulkObslib("");
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao liberar em lote.");
+    } finally {
+      setBulkSubmitting(false);
     }
   }
 
@@ -502,7 +549,7 @@ export default function Releases() {
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
                     <p className="text-sm font-semibold text-slate-900">{fmtMoney(row.vlratual)}</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => openDetails(row)}
@@ -517,6 +564,16 @@ export default function Releases() {
                           className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" /> Liberar
+                        </button>
+                      )}
+                      {isPending && canRelease && (pendingCountByNuchave.get(row.nuchave) ?? 0) >= 2 && (
+                        <button
+                          type="button"
+                          onClick={() => { setBulkNuchave(row.nuchave); setBulkObslib(""); }}
+                          className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                          Liberar Tudo ({pendingCountByNuchave.get(row.nuchave)})
                         </button>
                       )}
                     </div>
@@ -594,6 +651,17 @@ export default function Releases() {
                                 <CheckCircle2 className="h-3.5 w-3.5" /> Liberar
                               </button>
                             )}
+                            {isPending && canRelease && (pendingCountByNuchave.get(row.nuchave) ?? 0) >= 2 && (
+                              <button
+                                type="button"
+                                onClick={() => { setBulkNuchave(row.nuchave); setBulkObslib(""); }}
+                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                                title={`Liberar todas as ${pendingCountByNuchave.get(row.nuchave)} liberações pendentes da chave #${row.nuchave}`}
+                              >
+                                <Layers className="h-3.5 w-3.5" />
+                                Liberar Tudo ({pendingCountByNuchave.get(row.nuchave)})
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -634,6 +702,97 @@ export default function Releases() {
       {/* ══════════════════════════════════════════════════
           MODAL / DRAWER
       ══════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════
+          MODAL — LIBERAR TUDO (lote por nuchave)
+      ══════════════════════════════════════════════════ */}
+      {bulkNuchave !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm sm:items-center sm:px-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !bulkSubmitting) { setBulkNuchave(null); setBulkObslib(""); } }}
+        >
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
+            {/* cabeçalho */}
+            <div className="flex flex-shrink-0 items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-indigo-600" />
+                  <h3 className="text-base font-semibold text-slate-900">Liberar Tudo</h3>
+                </div>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Chave <span className="font-semibold text-slate-700">#{bulkNuchave}</span>
+                  {" · "}
+                  <span className="font-semibold text-indigo-700">
+                    {pendingCountByNuchave.get(bulkNuchave) ?? 0} liberação(ões) pendente(s)
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!bulkSubmitting) { setBulkNuchave(null); setBulkObslib(""); } }}
+                className="ml-3 flex-shrink-0 rounded-xl p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                disabled={bulkSubmitting}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* corpo */}
+            <div className="px-5 py-4 space-y-4">
+              {/* aviso */}
+              <div className="rounded-xl bg-indigo-50 px-4 py-3 ring-1 ring-indigo-200">
+                <p className="text-sm font-semibold text-indigo-800 mb-1">Ação em lote</p>
+                <p className="text-xs text-indigo-700">
+                  Serão liberadas <strong>{pendingCountByNuchave.get(bulkNuchave) ?? 0} sequências</strong> pendentes
+                  associadas à chave <strong>#{bulkNuchave}</strong>. Cada uma receberá o valor do seu próprio
+                  campo <code className="rounded bg-indigo-100 px-0.5">vlratual</code> como valor liberado.
+                  Esta ação não pode ser desfeita pelo app.
+                </p>
+              </div>
+
+              {/* campo obslib */}
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Observação da liberação <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  value={bulkObslib}
+                  onChange={(e) => setBulkObslib(e.target.value)}
+                  rows={3}
+                  placeholder="Descreva o motivo ou contexto desta liberação em lote..."
+                  disabled={bulkSubmitting}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 resize-none disabled:opacity-60"
+                  maxLength={255}
+                />
+                <p className="mt-1 text-right text-[10px] text-slate-400">{bulkObslib.trim().length}/255</p>
+              </div>
+            </div>
+
+            {/* rodapé */}
+            <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => { if (!bulkSubmitting) { setBulkNuchave(null); setBulkObslib(""); } }}
+                disabled={bulkSubmitting}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={submitBulkRelease}
+                disabled={bulkObslib.trim().length === 0 || bulkSubmitting}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {bulkSubmitting
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Liberando...</>
+                  : <><Layers className="h-4 w-4" /> Confirmar ({pendingCountByNuchave.get(bulkNuchave) ?? 0} liberações)</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selected && (
         <div
           className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm sm:items-center sm:px-4"

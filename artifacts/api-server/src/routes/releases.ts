@@ -785,4 +785,122 @@ router.post(
   },
 );
 
+// =====================================================================
+// POST /releases/:nuchave/release-all
+//
+// Libera TODAS as sequências PENDENTES de uma mesma nuchave de uma vez.
+// A lógica de update é exatamente a mesma do endpoint individual:
+//   - vlrliberado = vlratual da própria linha (cada linha tem o seu)
+//   - percanterior / vlranterior = snapshot antes da liberação
+//   - dhlib, codusulib, obslib iguais para todas
+//
+// Segurança:
+//   - Lê as pendentes antes → garante que só tenta liberar o que está pendente
+//   - Cada UPDATE usa .is("dhlib", null) como double-check → se uma linha
+//     foi liberada entre o SELECT e o UPDATE (race condition), o update
+//     silenciosamente afeta 0 linhas — sem sobrescrever dado já liberado
+//   - Retorna { released, failed, total } para o frontend exibir feedback preciso
+// =====================================================================
+router.post(
+  "/releases/:nuchave/release-all",
+  requireAuth,
+  async (req: AuthedRequest, res: Response): Promise<void> => {
+    // ── 1. Permissão ──────────────────────────────────────────────────
+    const role = req.user?.role;
+    if (role !== "robot" && role !== "human" && role !== "SA") {
+      res.status(403).json({ error: "Sem permissao para liberar" });
+      return;
+    }
+
+    // ── 2. Validação de rota ──────────────────────────────────────────
+    const nuchave = Number(req.params.nuchave);
+    if (!Number.isFinite(nuchave) || nuchave <= 0) {
+      res.status(400).json({ error: "Chave invalida" });
+      return;
+    }
+
+    // ── 3. Validação de body ──────────────────────────────────────────
+    const obslibRaw = req.body?.obslib;
+    const obslibTrimmed =
+      typeof obslibRaw === "string" ? obslibRaw.trim() : "";
+    if (obslibTrimmed === "") {
+      res.status(400).json({ error: "Observacao da liberacao e obrigatoria." });
+      return;
+    }
+    const obslib = obslibTrimmed.slice(0, 255);
+
+    // ── 4. Busca todas as linhas pendentes da nuchave ─────────────────
+    //    Filtra: dhlib IS NULL e reprovado = 'N'
+    const { data: pendingRows, error: fetchErr } = await supabase
+      .from(TABLE)
+      .select("nuchave, sequencia, vlratual, vlrliberado, perclimite, reprovado")
+      .eq("nuchave", nuchave)
+      .is("dhlib", null)
+      .eq("reprovado", "N");
+
+    if (fetchErr) {
+      logger.error({ err: fetchErr }, "release-all: falha ao buscar pendentes");
+      res.status(500).json({ error: "Erro ao buscar liberacoes", detail: fetchErr.message });
+      return;
+    }
+
+    if (!pendingRows || pendingRows.length === 0) {
+      res.status(409).json({ error: "Nenhuma liberacao pendente para esta chave" });
+      return;
+    }
+
+    // ── 5. Prepara valores fixos para o lote ──────────────────────────
+    const userIdRaw = req.user?.id ?? 0;
+    const codusulib = Math.max(0, Math.min(32767, Math.trunc(userIdRaw)));
+    const dhlib = nowBrasiliaISO(); // mesmo instante para todas as linhas do lote
+
+    // ── 6. Atualiza cada linha individualmente ────────────────────────
+    //    Cada linha pode ter vlratual diferente — não é possível fazer
+    //    um único UPDATE para todo o lote. Usamos Promise.allSettled
+    //    para tentar todas e coletar os resultados individualmente.
+    const results = await Promise.allSettled(
+      (pendingRows as Array<Record<string, unknown>>).map(async (row) => {
+        const seq = Number(row.sequencia);
+        const vlrLiberado = Number(row.vlratual ?? 0);
+
+        const { error: updateErr } = await supabase
+          .from(TABLE)
+          .update({
+            dhlib,
+            codusulib,
+            vlrliberado: vlrLiberado,
+            obslib,
+            // snapshot do estado anterior — padrão Sankhya
+            percanterior: Number(row.perclimite ?? 0),
+            vlranterior: Number(row.vlrliberado ?? 0),
+          })
+          .eq("nuchave", nuchave)
+          .eq("sequencia", seq)
+          .is("dhlib", null); // double-check: só grava se ainda pendente
+
+        if (updateErr) {
+          logger.error({ err: updateErr, nuchave, seq }, "release-all: falha ao atualizar sequencia");
+          throw updateErr;
+        }
+        return seq;
+      }),
+    );
+
+    const succeeded = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.filter((r) => r.status === "rejected").length;
+
+    if (failed > 0) {
+      logger.warn({ nuchave, succeeded, failed }, "release-all: parte das sequencias falhou");
+    }
+
+    if (succeeded === 0) {
+      res.status(500).json({ error: "Nenhuma liberacao foi efetuada" });
+      return;
+    }
+
+    logger.info({ nuchave, succeeded, failed, total: pendingRows.length }, "release-all: concluido");
+    res.json({ released: succeeded, failed, total: pendingRows.length });
+  },
+);
+
 export default router;
